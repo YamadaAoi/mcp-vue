@@ -1,0 +1,80 @@
+{
+  "name": "mcp-vue",
+  "version": "1.0.0",
+  "description": "A Local MCP server for finding vue code references using Tree-sitter",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && tsc --noEmit",
+    "build:prod": "vite build --mode production && tsc --noEmit",
+    "start": "node dist/index.js",
+    "dev": "vite build && node dist/index.js",
+    "watch": "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "npx tsx src/tests/run-tests.ts",
+    "test:basic": "npx tsx src/tests/run-tests.ts basic",
+    "test:typescript": "npx tsx src/tests/run-tests.ts typescript",
+    "test:vue": "npx tsx src/tests/run-tests.ts vue",
+    "test:concurrency": "npx tsx src/tests/run-tests.ts concurrency",
+    "prepare": "simple-git-hooks"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YamadaAoi/mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "ai",
+    "vue",
+    "ts"
+  ],
+  "author": "zhouyinkui",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/YamadaAoi/mcp/issues"
+  },
+  "homepage": "https://github.com/YamadaAoi/mcp#readme",
+  "dependencies": {
+    "@vue/compiler-sfc": "^3.5.26",
+    "web-tree-sitter": "^0.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.51.0",
+    "@typescript-eslint/parser": "^8.51.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "simple-git-hooks": "^2.13.1",
+    "tree-sitter-typescript": "^0.23.2",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged --allow-empty --concurrent false"
+  },
+  "lint-staged": {
+    "*": [
+      "prettier --write --cache --ignore-unknown"
+    ],
+    "*.{ts,tsx,vue}": [
+      "eslint --cache --fix"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "simple-git-hooks"
+    ]
+  }
+}
