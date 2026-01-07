@@ -2,9 +2,119 @@ import type { ParseResult } from './types'
 import type { ToolRegistration } from '../../utils/mcpServer'
 import { parseTypeScript, parseTSX } from './typescript/tsParser'
 import { parseVue } from './vue/vueParser'
-import { getLogger } from '../../utils/logger.js'
+import { getLogger } from '../../utils/logger'
 
 const logger = getLogger()
+
+const SUPPORTED_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'vue'] as const
+
+type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number]
+
+const PARSER_MAP: Record<
+  SupportedExtension,
+  (code: string, filename: string) => Promise<ParseResult>
+> = {
+  ts: parseTypeScript,
+  tsx: parseTSX,
+  js: parseTypeScript,
+  jsx: parseTSX,
+  vue: parseVue
+}
+
+function isValidCode(code: unknown): code is string {
+  return typeof code === 'string' && code.length > 0
+}
+
+function isValidFilename(filename: unknown): filename is string {
+  return typeof filename === 'string' && filename.length > 0
+}
+
+function validateParseArgs(
+  code: unknown,
+  filename: unknown
+): asserts code is string {
+  if (!isValidCode(code)) {
+    logger.error('Invalid or missing code parameter')
+    throw new Error('Invalid or missing code parameter')
+  }
+
+  if (!isValidFilename(filename)) {
+    logger.error('Invalid or missing filename parameter')
+    throw new Error('Invalid or missing filename parameter')
+  }
+}
+
+function handleParseError(
+  error: unknown,
+  operation: string,
+  filename?: string
+): never {
+  const message = error instanceof Error ? error.message : 'Unknown error'
+  const errorMessage = `Failed to ${operation}${filename ? ` in ${filename}` : ''}: ${message}`
+
+  logger.error(errorMessage, error)
+
+  throw new Error(errorMessage)
+}
+
+function mapParseResult(result: ParseResult) {
+  return {
+    success: true,
+    language: result.language,
+    functions: result.functions.map(fn => ({
+      name: fn.name,
+      type: fn.type,
+      parameters: fn.parameters,
+      returnType: fn.returnType,
+      position: {
+        start: fn.startPosition,
+        end: fn.endPosition
+      }
+    })),
+    classes: result.classes.map(cls => ({
+      name: cls.name,
+      extends: cls.extends,
+      implements: cls.implements,
+      methods: cls.methods,
+      properties: cls.properties,
+      position: {
+        start: cls.startPosition,
+        end: cls.endPosition
+      }
+    })),
+    variables: result.variables.map(v => ({
+      name: v.name,
+      type: v.type,
+      value: v.value,
+      isConst: v.isConst,
+      position: v.startPosition
+    })),
+    imports: result.imports.map(imp => ({
+      source: imp.source,
+      imports: imp.imports,
+      isDefault: imp.isDefault,
+      isNamespace: imp.isNamespace,
+      position: imp.startPosition
+    })),
+    exports: result.exports.map(exp => ({
+      name: exp.name,
+      type: exp.type,
+      isDefault: exp.isDefault,
+      position: exp.startPosition
+    })),
+    types: result.types.map(t => ({
+      name: t.name,
+      kind: t.kind,
+      properties: t.properties,
+      methods: t.methods,
+      position: {
+        start: t.startPosition,
+        end: t.endPosition
+      }
+    })),
+    vueTemplate: result.vueTemplate
+  }
+}
 
 export async function parseFile(
   code: string,
@@ -12,39 +122,18 @@ export async function parseFile(
 ): Promise<ParseResult> {
   logger.debug(`Parsing file: ${filename}`, { codeLength: code.length })
 
-  const ext = filename.split('.').pop()?.toLowerCase()
+  const ext = filename.split('.').pop()?.toLowerCase() as SupportedExtension
 
-  switch (ext) {
-    case 'ts':
-      logger.debug(`Parsing TypeScript file: ${filename}`)
-      return parseTypeScript(code, filename)
-    case 'tsx':
-      logger.debug(`Parsing TSX file: ${filename}`)
-      return parseTSX(code, filename)
-    case 'vue':
-      logger.debug(`Parsing Vue file: ${filename}`)
-      return parseVue(code, filename)
-    default:
-      logger.error(`Unsupported file type: ${ext}`, { filename })
-      throw new Error(`Unsupported file type: ${ext}`)
+  if (!ext || !SUPPORTED_EXTENSIONS.includes(ext)) {
+    logger.error(`Unsupported file type: ${ext}`, { filename })
+    throw new Error(`Unsupported file type: ${ext}`)
   }
-}
 
-export async function parseCode(
-  code: string,
-  language: string
-): Promise<ParseResult> {
-  switch (language) {
-    case 'typescript':
-    case 'ts':
-      return parseTypeScript(code, 'unknown.ts')
-    case 'tsx':
-      return parseTSX(code, 'unknown.tsx')
-    case 'vue':
-      return parseVue(code, 'unknown.vue')
-    default:
-      throw new Error(`Unsupported language: ${language}`)
-  }
+  const parser = PARSER_MAP[ext]
+
+  logger.debug(`Parsing ${ext.toUpperCase()} file: ${filename}`)
+
+  return parser(code, filename)
 }
 
 export function createASTTools(): ToolRegistration[] {
@@ -77,15 +166,7 @@ export function createASTTools(): ToolRegistration[] {
           codeLength: code.length
         })
 
-        if (!code || typeof code !== 'string') {
-          logger.error('Invalid or missing code parameter')
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          logger.error('Invalid or missing filename parameter')
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         try {
           const result = await parseFile(code, filename)
@@ -99,66 +180,9 @@ export function createASTTools(): ToolRegistration[] {
             variables: result.variables.length
           })
 
-          return {
-            success: true,
-            language: result.language,
-            functions: result.functions.map(fn => ({
-              name: fn.name,
-              type: fn.type,
-              parameters: fn.parameters,
-              returnType: fn.returnType,
-              position: {
-                start: fn.startPosition,
-                end: fn.endPosition
-              }
-            })),
-            classes: result.classes.map(cls => ({
-              name: cls.name,
-              extends: cls.extends,
-              implements: cls.implements,
-              methods: cls.methods,
-              properties: cls.properties,
-              position: {
-                start: cls.startPosition,
-                end: cls.endPosition
-              }
-            })),
-            variables: result.variables.map(v => ({
-              name: v.name,
-              type: v.type,
-              value: v.value,
-              isConst: v.isConst,
-              position: v.startPosition
-            })),
-            imports: result.imports.map(imp => ({
-              source: imp.source,
-              imports: imp.imports,
-              isDefault: imp.isDefault,
-              isNamespace: imp.isNamespace,
-              position: imp.startPosition
-            })),
-            exports: result.exports.map(exp => ({
-              name: exp.name,
-              type: exp.type,
-              isDefault: exp.isDefault,
-              position: exp.startPosition
-            })),
-            types: result.types.map(t => ({
-              name: t.name,
-              kind: t.kind,
-              properties: t.properties,
-              methods: t.methods,
-              position: {
-                start: t.startPosition,
-                end: t.endPosition
-              }
-            })),
-            vueTemplate: result.vueTemplate
-          }
+          return mapParseResult(result)
         } catch (error) {
-          throw new Error(
-            `Failed to parse code: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'parse code', filename)
         }
       }
     },
@@ -187,15 +211,7 @@ export function createASTTools(): ToolRegistration[] {
 
         logger.debug(`find_functions tool called for: ${filename}`)
 
-        if (!code || typeof code !== 'string') {
-          logger.error('Invalid or missing code parameter')
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          logger.error('Invalid or missing filename parameter')
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         try {
           const result = await parseFile(code, filename)
@@ -219,10 +235,7 @@ export function createASTTools(): ToolRegistration[] {
             }))
           }
         } catch (error) {
-          logger.error(`Failed to find functions in: ${filename}`, error)
-          throw new Error(
-            `Failed to find functions: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'find functions', filename)
         }
       }
     },
@@ -251,15 +264,7 @@ export function createASTTools(): ToolRegistration[] {
 
         logger.debug(`find_classes tool called for: ${filename}`)
 
-        if (!code || typeof code !== 'string') {
-          logger.error('Invalid or missing code parameter')
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          logger.error('Invalid or missing filename parameter')
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         try {
           const result = await parseFile(code, filename)
@@ -282,10 +287,7 @@ export function createASTTools(): ToolRegistration[] {
             }))
           }
         } catch (error) {
-          logger.error(`Failed to find classes in: ${filename}`, error)
-          throw new Error(
-            `Failed to find classes: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'find classes', filename)
         }
       }
     },
@@ -314,15 +316,7 @@ export function createASTTools(): ToolRegistration[] {
 
         logger.debug(`find_imports tool called for: ${filename}`)
 
-        if (!code || typeof code !== 'string') {
-          logger.error('Invalid or missing code parameter')
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          logger.error('Invalid or missing filename parameter')
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         try {
           const result = await parseFile(code, filename)
@@ -341,10 +335,7 @@ export function createASTTools(): ToolRegistration[] {
             }))
           }
         } catch (error) {
-          logger.error(`Failed to find imports in: ${filename}`, error)
-          throw new Error(
-            `Failed to find imports: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'find imports', filename)
         }
       }
     },
@@ -373,15 +364,7 @@ export function createASTTools(): ToolRegistration[] {
 
         logger.debug(`find_exports tool called for: ${filename}`)
 
-        if (!code || typeof code !== 'string') {
-          logger.error('Invalid or missing code parameter')
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          logger.error('Invalid or missing filename parameter')
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         try {
           const result = await parseFile(code, filename)
@@ -399,10 +382,7 @@ export function createASTTools(): ToolRegistration[] {
             }))
           }
         } catch (error) {
-          logger.error(`Failed to find exports in: ${filename}`, error)
-          throw new Error(
-            `Failed to find exports: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'find exports', filename)
         }
       }
     },
@@ -431,15 +411,7 @@ export function createASTTools(): ToolRegistration[] {
 
         logger.debug(`find_types tool called for: ${filename}`)
 
-        if (!code || typeof code !== 'string') {
-          logger.error('Invalid or missing code parameter')
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          logger.error('Invalid or missing filename parameter')
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         try {
           const result = await parseFile(code, filename)
@@ -461,10 +433,7 @@ export function createASTTools(): ToolRegistration[] {
             }))
           }
         } catch (error) {
-          logger.error(`Failed to find types in: ${filename}`, error)
-          throw new Error(
-            `Failed to find types: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'find types', filename)
         }
       }
     },
@@ -493,15 +462,7 @@ export function createASTTools(): ToolRegistration[] {
 
         logger.debug(`find_variables tool called for: ${filename}`)
 
-        if (!code || typeof code !== 'string') {
-          logger.error('Invalid or missing code parameter')
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          logger.error('Invalid or missing filename parameter')
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         try {
           const result = await parseFile(code, filename)
@@ -522,10 +483,7 @@ export function createASTTools(): ToolRegistration[] {
             }))
           }
         } catch (error) {
-          logger.error(`Failed to find variables in: ${filename}`, error)
-          throw new Error(
-            `Failed to find variables: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'find variables', filename)
         }
       }
     },
@@ -552,13 +510,7 @@ export function createASTTools(): ToolRegistration[] {
       handler: async args => {
         const { code, filename } = args as { code: string; filename: string }
 
-        if (!code || typeof code !== 'string') {
-          throw new Error('Invalid or missing code parameter')
-        }
-
-        if (!filename || typeof filename !== 'string') {
-          throw new Error('Invalid or missing filename parameter')
-        }
+        validateParseArgs(code, filename)
 
         if (!filename.endsWith('.vue')) {
           throw new Error(
@@ -587,9 +539,7 @@ export function createASTTools(): ToolRegistration[] {
             }
           }
         } catch (error) {
-          throw new Error(
-            `Failed to analyze Vue template: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
+          handleParseError(error, 'analyze Vue template', filename)
         }
       }
     }

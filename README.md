@@ -1,6 +1,6 @@
 # MCP Vue/TypeScript 代码解析服务器
 
-一个基于 Tree-sitter 的本地 MCP (Model Context Protocol) 服务器，用于解析和分析 TypeScript、JavaScript 和 Vue 代码。
+一个基于 Tree-sitter 的高性能本地 MCP (Model Context Protocol) 服务器，用于解析和分析 TypeScript、JavaScript 和 Vue 代码。
 
 ## 功能特性
 
@@ -9,21 +9,13 @@
 - 🔍 提取函数、类、变量、导入、导出和类型定义
 - 🎯 支持 Vue 模板分析（指令、绑定、事件、组件）
 - ⚡ 高性能并发请求处理
-- 📊 内置日志系统，支持控制台和文件输出
+- � 智能缓存机制，减少重复解析开销
+- 🔄 解析器池管理，优化资源利用
+- � 内置日志系统，支持控制台和文件输出
 - 🔧 灵活的环境变量配置
-
-## 安装
-
-```bash
-# 使用 npm
-npm install mcp-vue
-
-# 使用 pnpm
-pnpm add mcp-vue
-
-# 使用 yarn
-yarn add mcp-vue
-```
+- ✨ 完整的类型安全保证
+- 🧪 全面的测试覆盖（基础、复杂场景、边界情况、性能测试）
+- 🛡️ 标准化的错误处理和日志记录
 
 ## 使用方法
 
@@ -36,7 +28,98 @@ MCP 服务器通过标准输入/输出进行通信，支持 JSON-RPC 2.0 协议�
 npx mcp-vue
 ```
 
-### 配置日志
+## 配置选项
+
+### 配置文件
+
+MCP 服务器支持通过配置文件来设置日志选项。配置文件名为 `mcp-vue.config.json`，应放在项目根目录。
+
+配置文件优先级高于默认值，如果不存在配置文件，则使用默认配置。
+
+```json
+{
+  "logging": {
+    "level": "DEBUG",
+    "logFile": "./logs/mcp-server.log",
+    "enableConsole": true,
+    "enableFile": true
+  }
+}
+```
+
+### 配置项说明
+
+| 配置项          | 类型           | 描述                                                     | 默认值               |
+| --------------- | -------------- | -------------------------------------------------------- | -------------------- |
+| `level`         | string         | 日志级别 (DEBUG, INFO, WARN, ERROR)                      | `"INFO"`             |
+| `logFile`       | string \| null | 日志文件路径（相对于项目根目录），设为 null 禁用文件日志 | `"logs/mcp-vue.log"` |
+| `enableConsole` | boolean        | 是否启用控制台输出                                       | `true`               |
+| `enableFile`    | boolean        | 是否启用文件输出                                         | `true`               |
+
+**路径说明**：
+
+- 配置文件 `mcp-vue.config.json` 必须放在项目根目录
+- 日志文件路径相对于项目根目录解析，无论从哪个目录启动程序
+- 系统会自动识别项目根目录，支持以下场景：
+  - **普通项目**：查找包含 `package.json` 且包含 `.git` 的目录
+  - **Monorepo 项目**：查找包含 `workspaces` 配置、`pnpm-workspace.yaml` 或 `lerna.json` 的根目录
+  - **从子目录启动**：即使从子包或子目录启动，也能正确找到项目根目录
+
+### 日志级别说明
+
+- **DEBUG**: 详细的调试信息，包括所有请求和响应
+- **INFO**: 一般信息，包括工具调用和解析结果
+- **WARN**: 警告信息
+- **ERROR**: 错误信息
+
+## 在 Continue 中配置使用
+
+Continue 是一个强大的 AI 编程助手，支持通过 MCP 协议集成自定义工具。以下是如何在 Continue 中配置使用本 MCP 服务器的步骤：
+
+### 1. 在 Continue 配置文件中添加
+
+在 Continue 的配置文件中添加 MCP 服务器配置：
+
+```yaml
+mcpServers:
+  - name: Vue/TypeScript Parser
+    command: npx
+    args:
+      - '-y'
+      - 'mcp-vue'
+    type: stdio
+```
+
+### 2. 重启 Continue
+
+配置完成后，重启 Continue IDE 插件，MCP 服务器将自动启动并可用。
+
+### 3. 使用示例
+
+现在你可以在 Continue 中使用以下提示来分析代码：
+
+```
+分析当前文件的函数结构，找出所有公共函数及其参数
+```
+
+```
+检查这个 Vue 组件的模板，列出所有使用的指令和事件绑定
+```
+
+```
+提取当前 TypeScript 文件中的所有类型定义和接口
+```
+
+```
+分析这个项目的导入依赖关系，找出循环引用
+```
+
+### 配置说明
+
+- **name**: MCP 服务器的显示名称
+- **command**: 启动 MCP 服务器的命令（使用 `npx -y` 自动确认安装）
+- **args**: 传递给命令的参数
+- **type**: 传输类型，本服务器使用 `stdio`（标准输入/输出）
 
 ## MCP 工具列表
 
@@ -283,178 +366,6 @@ npx mcp-vue
   }
 }
 ```
-
-## 配置选项
-
-### 配置文件
-
-MCP 服务器支持通过配置文件来设置日志选项。配置文件名为 `mcp-vue.config.json`，应放在项目根目录。
-
-配置文件优先级高于默认值，如果不存在配置文件，则使用默认配置。
-
-```json
-{
-  "logging": {
-    "level": "DEBUG",
-    "logFile": "./logs/mcp-server.log",
-    "enableConsole": true,
-    "enableFile": true
-  }
-}
-```
-
-### 配置项说明
-
-| 配置项          | 类型           | 描述                                                     | 默认值               |
-| --------------- | -------------- | -------------------------------------------------------- | -------------------- |
-| `level`         | string         | 日志级别 (DEBUG, INFO, WARN, ERROR)                      | `"INFO"`             |
-| `logFile`       | string \| null | 日志文件路径（相对于项目根目录），设为 null 禁用文件日志 | `"logs/mcp-vue.log"` |
-| `enableConsole` | boolean        | 是否启用控制台输出                                       | `true`               |
-| `enableFile`    | boolean        | 是否启用文件输出                                         | `true`               |
-
-**路径说明**：
-
-- 配置文件 `mcp-vue.config.json` 必须放在项目根目录
-- 日志文件路径相对于项目根目录解析，无论从哪个目录启动程序
-- 系统会自动识别项目根目录，支持以下场景：
-  - **普通项目**：查找包含 `package.json` 且包含 `.git` 的目录
-  - **Monorepo 项目**：查找包含 `workspaces` 配置、`pnpm-workspace.yaml` 或 `lerna.json` 的根目录
-  - **从子目录启动**：即使从子包或子目录启动，也能正确找到项目根目录
-
-### 配置示例
-
-**示例 1：仅使用控制台输出（开发环境）**
-
-```json
-{
-  "logging": {
-    "level": "DEBUG",
-    "enableConsole": true,
-    "enableFile": false
-  }
-}
-```
-
-**示例 2：仅使用文件输出（生产环境）**
-
-```json
-{
-  "logging": {
-    "level": "INFO",
-    "enableConsole": false,
-    "enableFile": true,
-    "logFile": "./logs/production.log"
-  }
-}
-```
-
-**示例 3：同时使用控制台和文件输出**
-
-```json
-{
-  "logging": {
-    "level": "WARN",
-    "enableConsole": true,
-    "enableFile": true,
-    "logFile": "./logs/mcp-vue.log"
-  }
-}
-```
-
-### 日志级别说明
-
-- **DEBUG**: 详细的调试信息，包括所有请求和响应
-- **INFO**: 一般信息，包括工具调用和解析结果
-- **WARN**: 警告信息
-- **ERROR**: 错误信息
-
-## 开发
-
-### 克隆仓库
-
-```bash
-git clone https://github.com/YamadaAoi/mcp.git
-cd mcp
-```
-
-### 安装依赖
-
-```bash
-pnpm install
-```
-
-### 构建项目
-
-```bash
-pnpm build
-```
-
-### 运行测试
-
-```bash
-# 运行所有测试
-pnpm test
-
-# 运行特定测试
-pnpm test:basic        # 基础功能测试
-pnpm test:typescript   # TypeScript 解析测试
-pnpm test:vue          # Vue 解析测试
-pnpm test:concurrency  # 并发处理测试
-```
-
-### 代码检查
-
-```bash
-# 运行 ESLint
-pnpm lint
-
-# 自动修复 ESLint 问题
-pnpm lint:fix
-
-# 运行 Prettier 格式化
-pnpm format
-
-# 检查代码格式
-pnpm format:check
-
-# TypeScript 类型检查
-pnpm typecheck
-```
-
-## 项目结构
-
-```
-mcp/
-├── src/
-│   ├── services/
-│   │   └── ast/              # AST 解析服务
-│   │       ├── types.ts      # 类型定义
-│   │       ├── index.ts      # 主入口和工具注册
-│   │       ├── typescript/   # TypeScript 解析器
-│   │       ├── vue/          # Vue 解析器
-│   │       ├── pool/         # 解析器池（并发处理）
-│   │       └── extractors/   # AST 提取器
-│   ├── utils/
-│   │   ├── mcpServer.ts      # MCP 服务器实现
-│   │   ├── logger.ts         # 日志系统
-│   │   └── mutex.ts          # 互斥锁实现
-│   ├── tests/                # 测试文件
-│   └── index.ts               # 项目入口
-├── dist/                      # 构建输出
-├── logs/                      # 日志文件（运行时生成）
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── README.md
-```
-
-## 技术栈
-
-- **TypeScript**: 主要开发语言
-- **Vite**: 构建工具
-- **Tree-sitter**: 代码解析库
-- **@vue/compiler-sfc**: Vue SFC 编译器
-- **web-tree-sitter**: Tree-sitter 的 WebAssembly 绑定
 
 ## 许可证
 

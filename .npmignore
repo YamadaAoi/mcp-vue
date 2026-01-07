@@ -3,8 +3,6 @@ src
 node_modules
 .gitignore
 .prettierignore
-.eslintignore
-.eslintrc.js
 .prettierrc.cjs
 vite.config.ts
 eslint.config.js

@@ -17,7 +17,12 @@ export default defineConfig(({ mode }) => {
       minify: isProduction,
       sourcemap: !isProduction,
       rollupOptions: {
-        external: ['@vue/compiler-sfc', 'web-tree-sitter', /^node:.*/],
+        external: [
+          '@vue/compiler-sfc',
+          'web-tree-sitter',
+          'tree-sitter-typescript',
+          /^node:.*/
+        ],
         output: {
           preserveModules: false,
           inlineDynamicImports: true

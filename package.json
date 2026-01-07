@@ -37,6 +37,9 @@
     "vue",
     "ts"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "author": "zhouyinkui",
   "license": "ISC",
   "bugs": {
@@ -45,6 +48,7 @@
   "homepage": "https://github.com/YamadaAoi/mcp#readme",
   "dependencies": {
     "@vue/compiler-sfc": "^3.5.26",
+    "tree-sitter-typescript": "^0.23.2",
     "web-tree-sitter": "^0.25.0"
   },
   "devDependencies": {
@@ -57,7 +61,6 @@
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
     "simple-git-hooks": "^2.13.1",
-    "tree-sitter-typescript": "^0.23.2",
     "typescript": "^5.7.2",
     "vite": "^5.4.11"
   },

@@ -2,6 +2,10 @@ import { testBasic } from './test-basic'
 import { testTypeScript } from './test-typescript'
 import { testVue } from './test-vue'
 import { testConcurrency } from './test-concurrency'
+import { testComplexTypeScript } from './test-complex-typescript'
+import { testComplexVue } from './test-complex-vue'
+import { testEdgeCases } from './test-edge-cases'
+import { testPerformance } from './test-performance'
 
 async function runAllTests() {
   console.log('╔════════════════════════════════════════╗')
@@ -12,7 +16,11 @@ async function runAllTests() {
     { name: '基础功能', fn: testBasic },
     { name: 'TypeScript 解析', fn: testTypeScript },
     { name: 'Vue 解析', fn: testVue },
-    { name: '并发处理', fn: testConcurrency }
+    { name: '并发处理', fn: testConcurrency },
+    { name: '复杂 TypeScript 解析', fn: testComplexTypeScript },
+    { name: '复杂 Vue 解析', fn: testComplexVue },
+    { name: '边界情况', fn: testEdgeCases },
+    { name: '性能测试', fn: testPerformance }
   ]
 
   const failedTests: string[] = []
@@ -45,7 +53,11 @@ async function runSpecificTest(testName: string) {
     basic: testBasic,
     typescript: testTypeScript,
     vue: testVue,
-    concurrency: testConcurrency
+    concurrency: testConcurrency,
+    complexTypescript: testComplexTypeScript,
+    complexVue: testComplexVue,
+    edgeCases: testEdgeCases,
+    performance: testPerformance
   }
 
   const test = tests[testName]

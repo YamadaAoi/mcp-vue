@@ -1,49 +1,55 @@
 import { createInterface } from 'node:readline'
 import { getLogger } from './logger.js'
 
-export interface InitializeRequest {
+const JSONRPC_VERSION = '2.0'
+const PROTOCOL_VERSION = '2024-11-05'
+const ERROR_CODE_METHOD_NOT_FOUND = -32601
+const ERROR_CODE_INTERNAL_ERROR = -32603
+const ERROR_CODE_INVALID_PARAMS = -32602
+
+interface InitializeRequest {
   jsonrpc: '2.0'
   method: 'initialize'
   params?: MCPInitializeParams
   id: number | string
 }
 
-export interface InitializedRequest {
+interface InitializedRequest {
   jsonrpc: '2.0'
   method: 'initialized'
   params?: unknown
   id?: number | string
 }
 
-export interface ToolsListRequest {
+interface ToolsListRequest {
   jsonrpc: '2.0'
   method: 'tools/list'
   params?: unknown
   id: number | string
 }
 
-export interface ToolsCallRequest {
+interface ToolsCallRequest {
   jsonrpc: '2.0'
   method: 'tools/call'
   params: { name: string; arguments?: Record<string, unknown> }
   id: number | string
 }
 
-export interface ShutdownRequest {
+interface ShutdownRequest {
   jsonrpc: '2.0'
   method: 'shutdown'
   params?: unknown
   id: number | string
 }
 
-export type JSONRPCRequest =
+type JSONRPCRequest =
   | InitializeRequest
   | InitializedRequest
   | ToolsListRequest
   | ToolsCallRequest
   | ShutdownRequest
 
-export interface JSONRPCResponse {
+interface JSONRPCResponse {
   jsonrpc: '2.0'
   result?: unknown
   error?: {
@@ -54,7 +60,7 @@ export interface JSONRPCResponse {
   id: number | string | null
 }
 
-export interface Tool {
+interface Tool {
   name: string
   description: string
   inputSchema: {
@@ -70,7 +76,7 @@ export interface Tool {
   }
 }
 
-export interface MCPInitializeParams {
+interface MCPInitializeParams {
   protocolVersion: string
   capabilities: {
     roots?: {
@@ -84,7 +90,7 @@ export interface MCPInitializeParams {
   }
 }
 
-export interface MCPInitializeResult {
+interface MCPInitializeResult {
   protocolVersion: string
   capabilities: {
     tools: object
@@ -97,11 +103,21 @@ export interface MCPInitializeResult {
   }
 }
 
-export type ToolHandler = (args: Record<string, unknown>) => unknown
+type ToolHandler = (args: Record<string, unknown>) => unknown
 
 export interface ToolRegistration {
   tool: Tool
   handler: ToolHandler
+}
+
+function isValidMethod(method: string): boolean {
+  return [
+    'initialize',
+    'initialized',
+    'tools/list',
+    'tools/call',
+    'shutdown'
+  ].includes(method)
 }
 
 export class MCPServer {
@@ -109,12 +125,42 @@ export class MCPServer {
   #name: string
   #version: string
   #logger = getLogger()
+  #requestHandlers: Map<
+    string,
+    (
+      id: number | string | null,
+      request?: JSONRPCRequest
+    ) => JSONRPCResponse | Promise<JSONRPCResponse>
+  > = new Map()
 
   constructor(name: string, version: string) {
     this.#name = name
     this.#version = version
+    this.#initializeRequestHandlers()
     this.#registerDefaultTools()
     this.#logger.info(`MCP Server initialized: ${name} v${version}`)
+  }
+
+  #initializeRequestHandlers(): void {
+    this.#requestHandlers.set('initialize', id => this.#handleInitialize(id))
+    this.#requestHandlers.set('initialized', id => {
+      this.#logger.debug('Client initialized')
+      return { jsonrpc: JSONRPC_VERSION, result: null, id: id ?? null }
+    })
+    this.#requestHandlers.set('tools/list', id => this.#handleToolsList(id))
+    this.#requestHandlers.set('tools/call', (id, request) =>
+      this.#handleToolsCall(
+        request?.params as {
+          name: string
+          arguments?: Record<string, unknown>
+        },
+        id
+      )
+    )
+    this.#requestHandlers.set('shutdown', id => {
+      this.#logger.info('Shutdown requested')
+      return { jsonrpc: JSONRPC_VERSION, result: null, id }
+    })
   }
 
   #registerDefaultTools(): void {
@@ -143,6 +189,7 @@ export class MCPServer {
   registerTools(registrations: ToolRegistration[]): void {
     for (const registration of registrations) {
       this.#tools.set(registration.tool.name, registration)
+      this.#logger.debug(`Registered tool: ${registration.tool.name}`)
     }
   }
 
@@ -152,41 +199,38 @@ export class MCPServer {
     this.#logger.debug(`Received request: ${method}`, { id })
 
     try {
-      switch (method) {
-        case 'initialize':
-          return this.#handleInitialize(id)
+      if (!isValidMethod(method)) {
+        this.#logger.warn(`Unknown method: ${method}`)
+        return {
+          jsonrpc: JSONRPC_VERSION,
+          error: {
+            code: ERROR_CODE_METHOD_NOT_FOUND,
+            message: `Method not found: ${method}`
+          },
+          id: id ?? null
+        }
+      }
 
-        case 'initialized':
-          this.#logger.debug('Client initialized')
-          return { jsonrpc: '2.0', result: null, id: id ?? null }
+      const handler = this.#requestHandlers.get(method)
+      if (handler) {
+        return handler(id ?? null, request) as Promise<JSONRPCResponse>
+      }
 
-        case 'tools/list':
-          return this.#handleToolsList(id)
-
-        case 'tools/call':
-          return this.#handleToolsCall(request.params, id)
-
-        case 'shutdown':
-          this.#logger.info('Shutdown requested')
-          return { jsonrpc: '2.0', result: null, id }
-
-        default:
-          this.#logger.warn(`Unknown method: ${method as string}`)
-          return {
-            jsonrpc: '2.0',
-            error: {
-              code: -32601,
-              message: `Method not found: ${method as string}`
-            },
-            id: id ?? null
-          }
+      this.#logger.warn(`Unknown method: ${method}`)
+      return {
+        jsonrpc: JSONRPC_VERSION,
+        error: {
+          code: ERROR_CODE_METHOD_NOT_FOUND,
+          message: `Method not found: ${method}`
+        },
+        id: id ?? null
       }
     } catch (error) {
       this.#logger.error(`Error handling request: ${method}`, error)
       return {
-        jsonrpc: '2.0',
+        jsonrpc: JSONRPC_VERSION,
         error: {
-          code: -32603,
+          code: ERROR_CODE_INTERNAL_ERROR,
           message: error instanceof Error ? error.message : 'Internal error'
         },
         id: id ?? null
@@ -194,9 +238,9 @@ export class MCPServer {
     }
   }
 
-  #handleInitialize(id: number | string): JSONRPCResponse {
+  #handleInitialize(id: number | string | null): JSONRPCResponse {
     const result: MCPInitializeResult = {
-      protocolVersion: '2024-11-05',
+      protocolVersion: PROTOCOL_VERSION,
       capabilities: {
         tools: {}
       },
@@ -206,14 +250,14 @@ export class MCPServer {
       }
     }
 
-    return { jsonrpc: '2.0', result, id }
+    return { jsonrpc: JSONRPC_VERSION, result, id }
   }
 
-  #handleToolsList(id: number | string): JSONRPCResponse {
+  #handleToolsList(id: number | string | null): JSONRPCResponse {
     const tools = Array.from(this.#tools.values()).map(({ tool }) => tool)
 
     return {
-      jsonrpc: '2.0',
+      jsonrpc: JSONRPC_VERSION,
       result: { tools },
       id
     }
@@ -221,7 +265,7 @@ export class MCPServer {
 
   async #handleToolsCall(
     params: { name: string; arguments?: Record<string, unknown> },
-    id: number | string
+    id: number | string | null
   ): Promise<JSONRPCResponse> {
     const { name, arguments: args } = params
 
@@ -234,7 +278,7 @@ export class MCPServer {
         const resolvedResult = await Promise.resolve(result)
         this.#logger.info(`Tool executed successfully: ${name}`)
         return {
-          jsonrpc: '2.0',
+          jsonrpc: JSONRPC_VERSION,
           result: {
             content: [
               {
@@ -248,9 +292,9 @@ export class MCPServer {
       } catch (error) {
         this.#logger.error(`Tool execution failed: ${name}`, error)
         return {
-          jsonrpc: '2.0',
+          jsonrpc: JSONRPC_VERSION,
           error: {
-            code: -32603,
+            code: ERROR_CODE_INTERNAL_ERROR,
             message:
               error instanceof Error ? error.message : 'Tool execution error'
           },
@@ -261,9 +305,9 @@ export class MCPServer {
 
     this.#logger.warn(`Unknown tool requested: ${name}`)
     return {
-      jsonrpc: '2.0',
+      jsonrpc: JSONRPC_VERSION,
       error: {
-        code: -32602,
+        code: ERROR_CODE_INVALID_PARAMS,
         message: `Unknown tool: ${name}`
       },
       id

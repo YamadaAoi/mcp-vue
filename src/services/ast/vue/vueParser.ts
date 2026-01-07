@@ -1,5 +1,5 @@
 import { parse as parseSFC } from '@vue/compiler-sfc'
-import { type Node } from 'web-tree-sitter'
+import { type Node, type Tree } from 'web-tree-sitter'
 import type {
   ParseResult,
   ASTNode,
@@ -10,239 +10,317 @@ import type {
 } from '../types'
 import { parseTypeScript } from '../typescript/tsParser'
 import { getParserPool } from '../pool/parserPool'
+import { getLogger } from '../../../utils/logger'
+
+const logger = getLogger()
+
+const HTML_TAGS = new Set([
+  'html',
+  'head',
+  'body',
+  'div',
+  'span',
+  'p',
+  'a',
+  'img',
+  'ul',
+  'ol',
+  'li',
+  'table',
+  'tr',
+  'td',
+  'th',
+  'form',
+  'input',
+  'button',
+  'select',
+  'option',
+  'textarea',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'section',
+  'article',
+  'header',
+  'footer',
+  'nav',
+  'aside',
+  'main',
+  'template',
+  'slot',
+  'component',
+  'transition',
+  'transition-group'
+])
+
+function isValidNode(node: Node | null | undefined): node is Node {
+  return node !== null && node !== undefined
+}
+
+function validateInput(code: string, filename: string): void {
+  if (!code || typeof code !== 'string') {
+    throw new Error('Invalid code: code must be a non-empty string')
+  }
+
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('Invalid filename: filename must be a non-empty string')
+  }
+}
 
 function convertTreeSitterNode(node: Node): ASTNode {
-  const children: ASTNode[] = []
+  const stack: { node: Node; parent: ASTNode | null }[] = [
+    { node, parent: null }
+  ]
 
-  if (node.children) {
-    for (const child of node.children) {
-      if (child) {
-        children.push(convertTreeSitterNode(child))
+  while (stack.length > 0) {
+    const { node: currentNode, parent } = stack.pop()!
+
+    const astNode: ASTNode = {
+      type: currentNode.type,
+      text: currentNode.text,
+      startPosition: {
+        row: currentNode.startPosition.row,
+        column: currentNode.startPosition.column
+      },
+      endPosition: {
+        row: currentNode.endPosition.row,
+        column: currentNode.endPosition.column
+      },
+      children: []
+    }
+
+    if (parent) {
+      parent.children.push(astNode)
+    } else {
+      return astNode
+    }
+
+    if (currentNode.children) {
+      for (let i = currentNode.children.length - 1; i >= 0; i--) {
+        const child = currentNode.children[i]
+        if (isValidNode(child)) {
+          stack.push({ node: child, parent: astNode })
+        }
       }
     }
   }
 
-  return {
-    type: node.type,
-    text: node.text,
-    startPosition: {
-      row: node.startPosition.row,
-      column: node.startPosition.column
-    },
-    endPosition: {
-      row: node.endPosition.row,
-      column: node.endPosition.column
-    },
-    children
-  }
+  throw new Error('Failed to convert tree-sitter node')
 }
 
 function extractDirectives(astNode: ASTNode): DirectiveInfo[] {
   const directives: DirectiveInfo[] = []
+  const stack: ASTNode[] = [astNode]
 
-  const extractFromNode = (node: ASTNode) => {
-    if (node.type === 'attribute') {
-      const text = node.text
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (!node) continue
 
-      if (text.startsWith('v-')) {
-        const parts = text.split('.')
-        const directiveName = parts[0]
-        const modifiers = parts.slice(1)
+    try {
+      if (node.type === 'attribute') {
+        const text = node.text
 
-        const match = directiveName.match(/v-(\w+)(?:=(.+))?/)
-        if (match) {
-          const name = match[1]
-          const value = match[2]?.replace(/['"]/g, '')
+        if (text.startsWith('v-')) {
+          const parts = text.split('.')
+          const directiveName = parts[0]
+          const modifiers = parts.slice(1)
 
-          directives.push({
+          const match = directiveName.match(/v-(\w+)(?:=(.+))?/)
+          if (match) {
+            const name = match[1]
+            const value = match[2]?.replace(/['"]/g, '')
+
+            directives.push({
+              name,
+              value,
+              modifiers,
+              element: findElementName(node),
+              startPosition: node.startPosition
+            })
+          }
+        }
+      }
+
+      for (const child of node.children) {
+        stack.push(child)
+      }
+    } catch (error) {
+      logger.error(
+        `Error processing directive node of type ${node.type}:`,
+        error
+      )
+    }
+  }
+
+  return directives
+}
+
+function extractBindings(astNode: ASTNode): BindingInfo[] {
+  const bindings: BindingInfo[] = []
+  const stack: ASTNode[] = [astNode]
+
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (!node) continue
+
+    try {
+      if (node.type === 'attribute') {
+        const text = node.text
+
+        if (text.startsWith(':') || text.startsWith('v-bind:')) {
+          let name: string
+          let expression: string
+
+          if (text.startsWith(':')) {
+            const match = text.match(/^:(\w+)=(.+)$/)
+            if (match) {
+              name = match[1]
+              expression = match[2].replace(/['"]/g, '')
+            } else {
+              for (const child of node.children) {
+                stack.push(child)
+              }
+              continue
+            }
+          } else {
+            const match = text.match(/^v-bind:(\w+)=(.+)$/)
+            if (match) {
+              name = match[1]
+              expression = match[2].replace(/['"]/g, '')
+            } else {
+              for (const child of node.children) {
+                stack.push(child)
+              }
+              continue
+            }
+          }
+
+          bindings.push({
             name,
-            value,
+            expression,
+            element: findElementName(node),
+            startPosition: node.startPosition
+          })
+        }
+      }
+
+      for (const child of node.children) {
+        stack.push(child)
+      }
+    } catch (error) {
+      logger.error(`Error processing binding node of type ${node.type}:`, error)
+    }
+  }
+
+  return bindings
+}
+
+function extractEvents(astNode: ASTNode): EventInfo[] {
+  const events: EventInfo[] = []
+  const stack: ASTNode[] = [astNode]
+
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (!node) continue
+
+    try {
+      if (node.type === 'attribute') {
+        const text = node.text
+
+        if (text.startsWith('@') || text.startsWith('v-on:')) {
+          let name: string
+          let handler: string
+          const modifiers: string[] = []
+
+          if (text.startsWith('@')) {
+            const match = text.match(/^@(\w+)(?:\.(.+))?=(.+)$/)
+            if (match) {
+              name = match[1]
+              if (match[2]) {
+                modifiers.push(...match[2].split('.'))
+              }
+              handler = match[3].replace(/['"]/g, '')
+            } else {
+              for (const child of node.children) {
+                stack.push(child)
+              }
+              continue
+            }
+          } else {
+            const match = text.match(/^v-on:(\w+)(?:\.(.+))?=(.+)$/)
+            if (match) {
+              name = match[1]
+              if (match[2]) {
+                modifiers.push(...match[2].split('.'))
+              }
+              handler = match[3].replace(/['"]/g, '')
+            } else {
+              for (const child of node.children) {
+                stack.push(child)
+              }
+              continue
+            }
+          }
+
+          events.push({
+            name,
+            handler,
             modifiers,
             element: findElementName(node),
             startPosition: node.startPosition
           })
         }
       }
-    }
 
-    for (const child of node.children) {
-      extractFromNode(child)
-    }
-  }
-
-  extractFromNode(astNode)
-  return directives
-}
-
-function extractBindings(astNode: ASTNode): BindingInfo[] {
-  const bindings: BindingInfo[] = []
-
-  const extractFromNode = (node: ASTNode) => {
-    if (node.type === 'attribute') {
-      const text = node.text
-
-      if (text.startsWith(':') || text.startsWith('v-bind:')) {
-        let name: string
-        let expression: string
-
-        if (text.startsWith(':')) {
-          const match = text.match(/^:(\w+)=(.+)$/)
-          if (match) {
-            name = match[1]
-            expression = match[2].replace(/['"]/g, '')
-          } else {
-            return
-          }
-        } else {
-          const match = text.match(/^v-bind:(\w+)=(.+)$/)
-          if (match) {
-            name = match[1]
-            expression = match[2].replace(/['"]/g, '')
-          } else {
-            return
-          }
-        }
-
-        bindings.push({
-          name,
-          expression,
-          element: findElementName(node),
-          startPosition: node.startPosition
-        })
+      for (const child of node.children) {
+        stack.push(child)
       }
-    }
-
-    for (const child of node.children) {
-      extractFromNode(child)
+    } catch (error) {
+      logger.error(`Error processing event node of type ${node.type}:`, error)
     }
   }
 
-  extractFromNode(astNode)
-  return bindings
-}
-
-function extractEvents(astNode: ASTNode): EventInfo[] {
-  const events: EventInfo[] = []
-
-  const extractFromNode = (node: ASTNode) => {
-    if (node.type === 'attribute') {
-      const text = node.text
-
-      if (text.startsWith('@') || text.startsWith('v-on:')) {
-        let name: string
-        let handler: string
-        const modifiers: string[] = []
-
-        if (text.startsWith('@')) {
-          const match = text.match(/^@(\w+)(?:\.(.+))?=(.+)$/)
-          if (match) {
-            name = match[1]
-            if (match[2]) {
-              modifiers.push(...match[2].split('.'))
-            }
-            handler = match[3].replace(/['"]/g, '')
-          } else {
-            return
-          }
-        } else {
-          const match = text.match(/^v-on:(\w+)(?:\.(.+))?=(.+)$/)
-          if (match) {
-            name = match[1]
-            if (match[2]) {
-              modifiers.push(...match[2].split('.'))
-            }
-            handler = match[3].replace(/['"]/g, '')
-          } else {
-            return
-          }
-        }
-
-        events.push({
-          name,
-          handler,
-          modifiers,
-          element: findElementName(node),
-          startPosition: node.startPosition
-        })
-      }
-    }
-
-    for (const child of node.children) {
-      extractFromNode(child)
-    }
-  }
-
-  extractFromNode(astNode)
   return events
 }
 
 function extractComponents(astNode: ASTNode): string[] {
   const components: Set<string> = new Set()
+  const stack: ASTNode[] = [astNode]
 
-  const extractFromNode = (node: ASTNode) => {
-    if (node.type === 'start_tag' || node.type === 'self_closing_tag') {
-      const tagName = node.children.find(
-        child => child.type === 'tag_name'
-      )?.text
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (!node) continue
 
-      if (tagName && !isHTMLTag(tagName)) {
-        components.add(tagName)
+    try {
+      if (node.type === 'start_tag' || node.type === 'self_closing_tag') {
+        const tagName = node.children.find(
+          child => child.type === 'tag_name'
+        )?.text
+
+        if (tagName && !isHTMLTag(tagName)) {
+          components.add(tagName)
+        }
       }
-    }
 
-    for (const child of node.children) {
-      extractFromNode(child)
+      for (const child of node.children) {
+        stack.push(child)
+      }
+    } catch (error) {
+      logger.error(
+        `Error processing component node of type ${node.type}:`,
+        error
+      )
     }
   }
 
-  extractFromNode(astNode)
   return Array.from(components)
 }
 
 function isHTMLTag(tagName: string): boolean {
-  const htmlTags = new Set([
-    'html',
-    'head',
-    'body',
-    'div',
-    'span',
-    'p',
-    'a',
-    'img',
-    'ul',
-    'ol',
-    'li',
-    'table',
-    'tr',
-    'td',
-    'th',
-    'form',
-    'input',
-    'button',
-    'select',
-    'option',
-    'textarea',
-    'h1',
-    'h2',
-    'h3',
-    'h4',
-    'h5',
-    'h6',
-    'section',
-    'article',
-    'header',
-    'footer',
-    'nav',
-    'aside',
-    'main',
-    'template',
-    'slot',
-    'component',
-    'transition',
-    'transition-group'
-  ])
-
-  return htmlTags.has(tagName.toLowerCase())
+  return HTML_TAGS.has(tagName.toLowerCase())
 }
 
 function findElementName(node: ASTNode): string {
@@ -263,10 +341,14 @@ export async function parseVue(
   code: string,
   filename: string
 ): Promise<ParseResult> {
+  validateInput(code, filename)
+
+  logger.debug(`Parsing Vue file: ${filename}`)
+
   const { descriptor, errors } = parseSFC(code, { filename })
 
   if (errors.length > 0) {
-    console.warn('Vue SFC parsing errors:', errors)
+    logger.warn('Vue SFC parsing errors:', errors)
   }
 
   let scriptResult: ParseResult | null = null
@@ -276,9 +358,11 @@ export async function parseVue(
       descriptor.script?.content || descriptor.scriptSetup?.content || ''
 
     try {
+      logger.debug(`Parsing script section of ${filename}`)
       scriptResult = await parseTypeScript(scriptContent, filename)
+      logger.debug(`Successfully parsed script section of ${filename}`)
     } catch (error) {
-      console.warn('Failed to parse script:', error)
+      logger.error(`Failed to parse script in ${filename}:`, error)
     }
   }
 
@@ -291,16 +375,25 @@ export async function parseVue(
 
     const pool = getParserPool()
     const parserInstance = await pool.acquire('vue')
+    let tree: Tree | null = null
 
     try {
-      const tree = parserInstance.parser.parse(templateContent)
+      logger.debug(`Parsing template section of ${filename}`)
+      tree = parserInstance.parser.parse(templateContent)
       if (tree) {
         templateAST = convertTreeSitterNode(tree.rootNode)
-        tree.delete()
+        logger.debug(`Successfully parsed template section of ${filename}`)
       }
     } catch (error) {
-      console.warn('Failed to parse template:', error)
+      logger.error(`Failed to parse template in ${filename}:`, error)
     } finally {
+      if (tree) {
+        try {
+          tree.delete()
+        } catch (error) {
+          logger.warn('Failed to delete tree:', error)
+        }
+      }
       pool.release('vue', parserInstance)
     }
 
@@ -311,10 +404,17 @@ export async function parseVue(
         events: extractEvents(templateAST),
         components: extractComponents(templateAST)
       }
+
+      logger.debug(`Extracted Vue template info from ${filename}`, {
+        directives: vueTemplateInfo.directives.length,
+        bindings: vueTemplateInfo.bindings.length,
+        events: vueTemplateInfo.events.length,
+        components: vueTemplateInfo.components.length
+      })
     }
   }
 
-  return {
+  const result = {
     language: 'vue',
     ast: scriptResult?.ast || {
       type: 'root',
@@ -331,4 +431,11 @@ export async function parseVue(
     types: scriptResult?.types || [],
     vueTemplate: vueTemplateInfo
   }
+
+  logger.debug(`Successfully parsed Vue file: ${filename}`, {
+    hasScript: !!scriptResult,
+    hasTemplate: !!vueTemplateInfo
+  })
+
+  return result
 }

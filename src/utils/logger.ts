@@ -1,11 +1,19 @@
 import { existsSync, mkdirSync, readFileSync, appendFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
+const PACKAGE_JSON_FILE = 'package.json' as const
+const PNPM_WORKSPACE_FILE = 'pnpm-workspace.yaml' as const
+const LERNA_CONFIG_FILE = 'lerna.json' as const
+const GIT_DIR = '.git' as const
+const CONFIG_FILE = 'mcp-vue.config.json' as const
+const LOG_FILE_EXTENSION = '.log' as const
+const DATE_SEPARATOR = '-' as const
+
 function findProjectRoot(): string {
   let currentDir = process.cwd()
 
   while (currentDir !== dirname(currentDir)) {
-    const packageJsonPath = resolve(currentDir, 'package.json')
+    const packageJsonPath = resolve(currentDir, PACKAGE_JSON_FILE)
 
     if (existsSync(packageJsonPath)) {
       try {
@@ -15,9 +23,9 @@ function findProjectRoot(): string {
 
         const hasWorkspaces = Boolean(packageJson.workspaces)
         const hasMonorepoConfig =
-          existsSync(resolve(currentDir, 'pnpm-workspace.yaml')) ||
-          existsSync(resolve(currentDir, 'lerna.json'))
-        const hasGit = existsSync(resolve(currentDir, '.git'))
+          existsSync(resolve(currentDir, PNPM_WORKSPACE_FILE)) ||
+          existsSync(resolve(currentDir, LERNA_CONFIG_FILE))
+        const hasGit = existsSync(resolve(currentDir, GIT_DIR))
 
         if (hasWorkspaces || hasMonorepoConfig || hasGit) {
           return currentDir
@@ -34,21 +42,35 @@ function findProjectRoot(): string {
 
 const PROJECT_ROOT = findProjectRoot()
 
-export enum LogLevel {
+enum LogLevel {
   DEBUG = 0,
   INFO = 1,
   WARN = 2,
   ERROR = 3
 }
 
-export interface LogEntry {
+const CONSOLE_COLORS = {
+  [LogLevel.DEBUG]: '90',
+  [LogLevel.INFO]: '36',
+  [LogLevel.WARN]: '33',
+  [LogLevel.ERROR]: '31'
+} as const
+
+const LOG_LEVEL_MAPPING = {
+  DEBUG: LogLevel.DEBUG,
+  INFO: LogLevel.INFO,
+  WARN: LogLevel.WARN,
+  ERROR: LogLevel.ERROR
+} as const
+
+interface LogEntry {
   timestamp: string
   level: string
   message: string
   data?: unknown
 }
 
-export interface LoggerConfig {
+interface LoggerConfig {
   level?: LogLevel | string
   logFile?: string | null
   enableConsole?: boolean
@@ -62,6 +84,8 @@ interface MCPConfig {
 export class Logger {
   #level: LogLevel
   #logFile: string | null
+  #logFileBase: string
+  #currentDate: string
   #enableConsole: boolean
   #enableFile: boolean
 
@@ -69,8 +93,10 @@ export class Logger {
     const config = this.#loadConfig()
 
     this.#level = this.#parseLogLevel(options?.level ?? config?.level ?? 'INFO')
-    const logFile = options?.logFile ?? config?.logFile ?? 'logs/mcp-vue.log'
-    this.#logFile = resolve(PROJECT_ROOT, logFile)
+    this.#logFileBase =
+      options?.logFile ?? config?.logFile ?? 'logs/mcp-vue.log'
+    this.#currentDate = this.#getCurrentDate()
+    this.#logFile = this.#generateLogFilePath()
     this.#enableConsole =
       options?.enableConsole ?? config?.enableConsole ?? true
     this.#enableFile = options?.enableFile ?? config?.enableFile ?? true
@@ -81,7 +107,7 @@ export class Logger {
   }
 
   #loadConfig(): LoggerConfig | null {
-    const configPath = resolve(PROJECT_ROOT, 'mcp-vue.config.json')
+    const configPath = resolve(PROJECT_ROOT, CONFIG_FILE)
 
     if (existsSync(configPath)) {
       try {
@@ -101,18 +127,11 @@ export class Logger {
       return level
     }
 
-    switch (level.toUpperCase()) {
-      case 'DEBUG':
-        return LogLevel.DEBUG
-      case 'INFO':
-        return LogLevel.INFO
-      case 'WARN':
-        return LogLevel.WARN
-      case 'ERROR':
-        return LogLevel.ERROR
-      default:
-        return LogLevel.INFO
-    }
+    const upperLevel = level.toUpperCase()
+    return (
+      LOG_LEVEL_MAPPING[upperLevel as keyof typeof LOG_LEVEL_MAPPING] ??
+      LogLevel.INFO
+    )
   }
 
   #ensureLogDirectory(): void {
@@ -121,6 +140,34 @@ export class Logger {
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true })
       }
+    }
+  }
+
+  #getCurrentDate(): string {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  #generateLogFilePath(): string {
+    const baseName = this.#logFileBase.replace(
+      new RegExp(`${LOG_FILE_EXTENSION}$`),
+      ''
+    )
+    return resolve(
+      PROJECT_ROOT,
+      `${baseName}${DATE_SEPARATOR}${this.#currentDate}${LOG_FILE_EXTENSION}`
+    )
+  }
+
+  #checkDateChange(): void {
+    const newDate = this.#getCurrentDate()
+    if (newDate !== this.#currentDate) {
+      this.#currentDate = newDate
+      this.#logFile = this.#generateLogFilePath()
+      this.#ensureLogDirectory()
     }
   }
 
@@ -156,6 +203,7 @@ export class Logger {
     }
 
     if (this.#enableFile && this.#logFile) {
+      this.#checkDateChange()
       try {
         appendFileSync(this.#logFile, formatted + '\n')
       } catch (error) {
@@ -165,18 +213,7 @@ export class Logger {
   }
 
   #getConsoleColor(level: LogLevel): string {
-    switch (level) {
-      case LogLevel.DEBUG:
-        return '90'
-      case LogLevel.INFO:
-        return '36'
-      case LogLevel.WARN:
-        return '33'
-      case LogLevel.ERROR:
-        return '31'
-      default:
-        return '0'
-    }
+    return CONSOLE_COLORS[level] ?? '0'
   }
 
   debug(message: string, data?: unknown): void {
@@ -211,8 +248,4 @@ export function getLogger(): Logger {
     globalLogger = new Logger()
   }
   return globalLogger
-}
-
-export function setLogger(logger: Logger): void {
-  globalLogger = logger
 }
