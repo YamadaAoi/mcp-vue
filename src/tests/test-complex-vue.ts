@@ -1,4 +1,5 @@
-import { MCPServerTestClient, complexVueCode, vueCode } from './test-helper'
+import { MCPServerTestClient } from './test-helper'
+import { resolve } from 'node:path'
 
 export async function testComplexVue() {
   console.log('=== 复杂 Vue 解析测试 ===\n')
@@ -12,8 +13,7 @@ export async function testComplexVue() {
     const basicVueResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: vueCode,
-        filename: 'basic.vue'
+        filepath: resolve('src/tests/fixtures/test-vue.vue')
       }
     })) as any
 
@@ -29,8 +29,7 @@ export async function testComplexVue() {
     const complexVueResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: complexVueCode,
-        filename: 'complex.vue'
+        filepath: resolve('src/tests/fixtures/test-complex-vue.vue')
       }
     })) as any
 
@@ -39,62 +38,60 @@ export async function testComplexVue() {
       函数: complexData.functions.length,
       类型: complexData.types.length,
       导入: complexData.imports.length,
+      变量: complexData.variables.length,
       模板: complexData.vueTemplate ? '有' : '无'
     })
 
-    console.log('\n--- 测试复杂模板分析 ---')
-    const templateResult = (await client.sendRequest('tools/call', {
-      name: 'analyze_vue_template',
-      arguments: {
-        code: complexVueCode,
-        filename: 'complex.vue'
+    if (complexData.vueTemplate) {
+      console.log('\n--- 验证模板信息 ---')
+      console.log('指令:', complexData.vueTemplate.directives?.length || 0)
+      console.log('绑定:', complexData.vueTemplate.bindings?.length || 0)
+      console.log('事件:', complexData.vueTemplate.events?.length || 0)
+      console.log('组件:', complexData.vueTemplate.components?.length || 0)
+
+      if (complexData.vueTemplate.directives?.length > 0) {
+        console.log('\n  指令详情:')
+        complexData.vueTemplate.directives.forEach((d: any) => {
+          console.log(`    ${d.name}: ${d.value || '无值'}`)
+        })
       }
-    })) as any
 
-    const templateData = JSON.parse(templateResult.result.content[0].text)
-    console.log('✅ 模板分析成功:', {
-      指令: templateData.template?.directives?.length || 0,
-      绑定: templateData.template?.bindings?.length || 0,
-      事件: templateData.template?.events?.length || 0,
-      组件: templateData.template?.components?.length || 0
-    })
+      if (complexData.vueTemplate.bindings?.length > 0) {
+        console.log('\n  绑定详情:')
+        complexData.vueTemplate.bindings.forEach((b: any) => {
+          console.log(`    ${b.name}: ${b.value}`)
+        })
+      }
 
-    if (templateData.template) {
-      console.log('\n  指令详情:')
-      templateData.template.directives?.forEach((d: any) => {
-        console.log(`    ${d.name}: ${d.value || '无值'}`)
-      })
+      if (complexData.vueTemplate.events?.length > 0) {
+        console.log('\n  事件详情:')
+        complexData.vueTemplate.events.forEach((e: any) => {
+          console.log(`    ${e.name}: ${e.handler}`)
+        })
+      }
 
-      console.log('\n  绑定详情:')
-      templateData.template.bindings?.forEach((b: any) => {
-        console.log(`    ${b.name}: ${b.value}`)
-      })
+      if (complexData.vueTemplate.components?.length > 0) {
+        console.log('\n  组件详情:')
+        complexData.vueTemplate.components.forEach((c: any) => {
+          console.log(`    ${c.name}`)
+        })
+      }
 
-      console.log('\n  事件详情:')
-      templateData.template.events?.forEach((e: any) => {
-        console.log(`    ${e.name}: ${e.handler}`)
-      })
+      console.log('\n--- 测试 v-if/v-else-if/v-else 指令 ---')
+      const vIfDirectives = complexData.vueTemplate.directives?.filter(
+        (d: any) => ['v-if', 'v-else-if', 'v-else'].includes(d.name)
+      )
+      console.log(`✅ 找到 ${vIfDirectives?.length || 0} 个条件渲染指令`)
 
-      console.log('\n  组件详情:')
-      templateData.template.components?.forEach((c: any) => {
-        console.log(`    ${c.name}`)
+      console.log('\n--- 测试 v-for 指令 ---')
+      const vForDirectives = complexData.vueTemplate.directives?.filter(
+        (d: any) => d.name === 'v-for'
+      )
+      console.log(`✅ 找到 ${vForDirectives?.length || 0} 个 v-for 指令`)
+      vForDirectives?.forEach((d: any) => {
+        console.log(`    ${d.value}`)
       })
     }
-
-    console.log('\n--- 测试 v-if/v-else-if/v-else 指令 ---')
-    const vIfDirectives = templateData.template?.directives?.filter((d: any) =>
-      ['v-if', 'v-else-if', 'v-else'].includes(d.name)
-    )
-    console.log(`✅ 找到 ${vIfDirectives?.length || 0} 个条件渲染指令`)
-
-    console.log('\n--- 测试 v-for 指令 ---')
-    const vForDirectives = templateData.template?.directives?.filter(
-      (d: any) => d.name === 'v-for'
-    )
-    console.log(`✅ 找到 ${vForDirectives?.length || 0} 个 v-for 指令`)
-    vForDirectives?.forEach((d: any) => {
-      console.log(`    ${d.value}`)
-    })
 
     console.log('\n--- 测试 script setup 部分解析 ---')
     console.log(
@@ -114,41 +111,25 @@ export async function testComplexVue() {
     }
 
     console.log('\n--- 测试响应式变量解析 ---')
-    const variablesResult = (await client.sendRequest('tools/call', {
-      name: 'find_variables',
-      arguments: {
-        code: complexVueCode,
-        filename: 'complex.vue'
-      }
-    })) as any
-    const variables = JSON.parse(variablesResult.result.content[0].text)
-    console.log(`✅ 找到 ${variables.count} 个变量`)
+    console.log(`✅ 找到 ${complexData.variables.length} 个变量`)
 
     console.log('\n--- 测试类型解析 ---')
-    const typesResult = (await client.sendRequest('tools/call', {
-      name: 'find_types',
-      arguments: {
-        code: complexVueCode,
-        filename: 'complex.vue'
-      }
-    })) as any
-    const typesData = JSON.parse(typesResult.result.content[0].text)
-    console.log(`✅ 找到 ${typesData.count} 个类型`)
+    console.log(`✅ 找到 ${complexData.types.length} 个类型`)
     console.log(
       '  类型列表:',
-      typesData.types.map((t: any) => t.name).join(', ')
+      complexData.types.map((t: any) => t.name).join(', ')
     )
 
     console.log('\n--- 测试导入解析 ---')
     console.log(`✅ 找到 ${complexData.imports.length} 个导入`)
     complexData.imports.forEach((imp: any) => {
       console.log(
-        `    ${imp.source}: ${imp.specifiers?.map((s: any) => s.name).join(', ') || '默认导入'}`
+        `    ${imp.source}: ${imp.imports?.map((s: any) => s.name).join(', ') || '默认导入'}`
       )
     })
 
     console.log('\n--- 测试 computed 属性 ---')
-    const computedVars = variables.variables.filter((v: any) => v.isComputed)
+    const computedVars = complexData.variables.filter((v: any) => v.isComputed)
     console.log(`✅ 找到 ${computedVars.length} 个计算属性`)
     computedVars.forEach((v: any) => {
       console.log(`    ${v.name}`)

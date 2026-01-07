@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import type { ParseResult } from '../types'
 import { getLogger } from '../../../utils/logger'
 
@@ -6,16 +5,15 @@ const logger = getLogger()
 
 const DEFAULT_MAX_CACHE_SIZE = 100
 const DEFAULT_CACHE_TTL = 5 * 60 * 1000
-const HASH_ALGORITHM = 'sha256'
 
 interface CacheEntry {
-  hash: string
+  key: string
   result: ParseResult
   timestamp: number
 }
 
-function isValidHash(hash: unknown): hash is string {
-  return typeof hash === 'string' && hash.length > 0
+function isValidCacheKey(key: unknown): key is string {
+  return typeof key === 'string' && key.length > 0
 }
 
 function isValidCacheSize(size: unknown): size is number {
@@ -45,46 +43,42 @@ export class CacheManager {
     )
   }
 
-  generateHash(code: string): string {
-    return createHash(HASH_ALGORITHM).update(code).digest('hex')
-  }
-
-  getFromCache(hash: string): ParseResult | null {
-    if (!isValidHash(hash)) {
-      logger.warn('Invalid hash provided to getFromCache')
+  getFromCache(key: string): ParseResult | null {
+    if (!isValidCacheKey(key)) {
+      logger.warn('Invalid cache key provided to getFromCache')
       return null
     }
 
-    const entry = this.#cache.get(hash)
+    const entry = this.#cache.get(key)
     if (!entry) {
-      logger.debug(`Cache miss for hash: ${hash.substring(0, 8)}...`)
+      logger.debug(`Cache miss for key: ${key.substring(0, 50)}...`)
       return null
     }
 
     const now = Date.now()
     if (now - entry.timestamp > this.#cacheTTL) {
-      logger.debug(`Cache entry expired for hash: ${hash.substring(0, 8)}...`)
-      this.#cache.delete(hash)
+      logger.debug(`Cache entry expired for key: ${key.substring(0, 50)}...`)
+      this.#cache.delete(key)
       return null
     }
 
     const result = entry.result
 
-    this.#cache.delete(hash)
-    this.#cache.set(hash, entry)
+    this.#cache.delete(key)
+    this.#cache.set(key, entry)
 
-    logger.debug(`Cache hit for hash: ${hash.substring(0, 8)}...`)
+    logger.debug(`Cache hit for key: ${key.substring(0, 50)}...`)
     return result
   }
 
-  setCache(hash: string, result: ParseResult): void {
-    if (!isValidHash(hash)) {
-      logger.warn('Invalid hash provided to setCache')
+  setCache(key: string, result: ParseResult): void {
+    if (!isValidCacheKey(key)) {
+      logger.warn('Invalid cache key provided to setCache')
       return
     }
 
-    if (this.#cache.has(hash)) {
-      this.#cache.delete(hash)
+    if (this.#cache.has(key)) {
+      this.#cache.delete(key)
     }
 
     while (this.#cache.size >= this.#maxCacheSize) {
@@ -96,54 +90,52 @@ export class CacheManager {
       }
     }
 
-    this.#cache.set(hash, {
-      hash,
+    this.#cache.set(key, {
+      key,
       result,
       timestamp: Date.now()
     })
 
-    logger.debug(`Cache entry set for hash: ${hash.substring(0, 8)}...`)
+    logger.debug(`Cache entry set for key: ${key.substring(0, 50)}...`)
   }
 
   async getOrCompute<T>(
-    hash: string,
+    key: string,
     compute: () => T | Promise<T>
   ): Promise<T> {
-    if (!isValidHash(hash)) {
-      logger.warn('Invalid hash provided to getOrCompute')
-      throw new Error('Invalid hash provided')
+    if (!isValidCacheKey(key)) {
+      logger.warn('Invalid cache key provided to getOrCompute')
+      throw new Error('Invalid cache key provided')
     }
 
-    const cached = this.getFromCache(hash)
+    const cached = this.getFromCache(key)
     if (cached) {
       return cached as T
     }
 
-    const existingPromise = this.#pendingRequests.get(hash)
+    const existingPromise = this.#pendingRequests.get(key)
     if (existingPromise) {
-      logger.debug(
-        `Using existing promise for hash: ${hash.substring(0, 8)}...`
-      )
+      logger.debug(`Using existing promise for key: ${key.substring(0, 50)}...`)
       return existingPromise as Promise<T>
     }
 
-    logger.debug(`Computing result for hash: ${hash.substring(0, 8)}...`)
+    logger.debug(`Computing result for key: ${key.substring(0, 50)}...`)
     const promise = Promise.resolve(compute())
       .then(result => {
-        this.setCache(hash, result as ParseResult)
-        this.#pendingRequests.delete(hash)
+        this.setCache(key, result as ParseResult)
+        this.#pendingRequests.delete(key)
         return result as T
       })
       .catch(error => {
-        this.#pendingRequests.delete(hash)
+        this.#pendingRequests.delete(key)
         logger.error(
-          `Failed to compute result for hash: ${hash.substring(0, 8)}...`,
+          `Failed to compute result for key: ${key.substring(0, 50)}...`,
           error
         )
         throw error
       })
 
-    this.#pendingRequests.set(hash, promise)
+    this.#pendingRequests.set(key, promise)
     return promise
   }
 

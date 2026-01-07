@@ -32,15 +32,16 @@ npx mcp-vue
 
 ### 配置文件
 
-MCP 服务器支持通过配置文件来设置日志选项。配置文件名为 `mcp-vue.config.json`，应放在项目根目录。
+MCP 服务器支持通过配置文件来设置工作目录和日志选项。配置文件名为 `mcp-vue.config.json`，应放在项目根目录。
 
 配置文件优先级高于默认值，如果不存在配置文件，则使用默认配置。
 
 ```json
 {
+  "cwd": ".",
   "logging": {
-    "level": "DEBUG",
-    "logFile": "./logs/mcp-server.log",
+    "level": "INFO",
+    "logFile": "logs/mcp-vue.log",
     "enableConsole": true,
     "enableFile": true
   }
@@ -51,6 +52,7 @@ MCP 服务器支持通过配置文件来设置日志选项。配置文件名为 
 
 | 配置项          | 类型           | 描述                                                     | 默认值               |
 | --------------- | -------------- | -------------------------------------------------------- | -------------------- |
+| `cwd`           | string         | 当前工作目录（相对于项目根目录）                         | `"."`                |
 | `level`         | string         | 日志级别 (DEBUG, INFO, WARN, ERROR)                      | `"INFO"`             |
 | `logFile`       | string \| null | 日志文件路径（相对于项目根目录），设为 null 禁用文件日志 | `"logs/mcp-vue.log"` |
 | `enableConsole` | boolean        | 是否启用控制台输出                                       | `true`               |
@@ -59,11 +61,39 @@ MCP 服务器支持通过配置文件来设置日志选项。配置文件名为 
 **路径说明**：
 
 - 配置文件 `mcp-vue.config.json` 必须放在项目根目录
+- `cwd` 配置项用于指定当前工作目录，文件路径将相对于此目录解析
 - 日志文件路径相对于项目根目录解析，无论从哪个目录启动程序
 - 系统会自动识别项目根目录，支持以下场景：
   - **普通项目**：查找包含 `package.json` 且包含 `.git` 的目录
   - **Monorepo 项目**：查找包含 `workspaces` 配置、`pnpm-workspace.yaml` 或 `lerna.json` 的根目录
   - **从子目录启动**：即使从子包或子目录启动，也能正确找到项目根目录
+
+**cwd 配置示例**：
+
+```json
+{
+  "cwd": "."
+}
+```
+
+- `"."`：使用项目根目录作为当前工作目录
+- `"packages/app"`：使用项目根目录下的 `packages/app` 目录
+- `"src"`：使用项目根目录下的 `src` 目录
+- `"D:/projects/my-project/src"`：使用绝对路径（注意路径分隔符使用 `/` 或 `\\`）
+
+**注意事项**：
+
+- 如果配置的 cwd 不存在，系统会回退到项目根目录
+- 文件路径解析会尝试多个可能的路径，包括：
+  - 直接使用提供的路径
+  - 相对于 cwd 的路径
+  - 相对于当前工作目录的路径（绝对路径解析）
+- 绝对路径可以用于指定项目外的目录，例如：
+  ```json
+  {
+    "cwd": "D:/shared-code/common-utils"
+  }
+  ```
 
 ### 日志级别说明
 
@@ -99,20 +129,27 @@ mcpServers:
 现在你可以在 Continue 中使用以下提示来分析代码：
 
 ```
-分析当前文件的函数结构，找出所有公共函数及其参数
+分析 src/components/Header.vue 文件的函数结构，找出所有公共函数及其参数
 ```
 
 ```
-检查这个 Vue 组件的模板，列出所有使用的指令和事件绑定
+检查 src/views/Home.vue 组件的模板，列出所有使用的指令和事件绑定
 ```
 
 ```
-提取当前 TypeScript 文件中的所有类型定义和接口
+提取 src/types/index.ts 文件中的所有类型定义和接口
 ```
 
 ```
-分析这个项目的导入依赖关系，找出循环引用
+分析 src/utils/api.ts 文件的导入依赖关系，找出循环引用
 ```
+
+**注意事项**：
+
+- 所有工具现在都使用 `filepath` 参数而不是 `code` 和 `filename` 参数
+- 文件路径是相对于配置文件中的 `cwd` 或项目根目录的
+- 服务器会自动检测文件类型并使用相应的解析器
+- 相同文件的重复解析会使用缓存，提高性能
 
 ### 配置说明
 
@@ -125,14 +162,13 @@ mcpServers:
 
 服务器提供以下工具用于代码分析：
 
-### 1. parse_code
+### parse_code
 
-完整解析代码并提取所有 AST 信息。
+完整解析代码文件并提取所有 AST 信息。这是**主要且推荐**的代码分析工具。
 
 **参数：**
 
-- `code` (string, 必需): 要解析的源代码
-- `filename` (string, 必需): 文件名（用于确定语言和 Vue SFC 解析）
+- `filepath` (string, 必需): 要解析的文件路径（相对于配置的 cwd 或项目根目录）
 
 **返回：**
 
@@ -140,31 +176,6 @@ mcpServers:
 {
   "success": true,
   "language": "typescript",
-  "functions": [...],
-  "classes": [...],
-  "variables": [...],
-  "imports": [...],
-  "exports": [...],
-  "types": [...],
-  "vueTemplate": {...}
-}
-```
-
-### 2. find_functions
-
-查找代码中的所有函数。
-
-**参数：**
-
-- `code` (string, 必需): 要解析的源代码
-- `filename` (string, 必需): 文件名
-
-**返回：**
-
-```json
-{
-  "success": true,
-  "count": 5,
   "functions": [
     {
       "name": "myFunction",
@@ -176,25 +187,7 @@ mcpServers:
         "end": { "row": 5, "column": 1 }
       }
     }
-  ]
-}
-```
-
-### 3. find_classes
-
-查找代码中的所有类及其成员。
-
-**参数：**
-
-- `code` (string, 必需): 要解析的源代码
-- `filename` (string, 必需): 文件名
-
-**返回：**
-
-```json
-{
-  "success": true,
-  "count": 2,
+  ],
   "classes": [
     {
       "name": "MyClass",
@@ -203,29 +196,20 @@ mcpServers:
       "methods": [...],
       "properties": [...],
       "position": {
-        "start": {"row": 0, "column": 0},
-        "end": {"row": 20, "column": 1}
+        "start": {"row": 10, "column": 0},
+        "end": {"row": 30, "column": 1}
       }
     }
-  ]
-}
-```
-
-### 4. find_imports
-
-查找代码中的所有导入语句。
-
-**参数：**
-
-- `code` (string, 必需): 要解析的源代码
-- `filename` (string, 必需): 文件名
-
-**返回：**
-
-```json
-{
-  "success": true,
-  "count": 3,
+  ],
+  "variables": [
+    {
+      "name": "myVariable",
+      "type": "string",
+      "value": "\"hello\"",
+      "isConst": true,
+      "position": { "row": 0, "column": 0 }
+    }
+  ],
   "imports": [
     {
       "source": "vue",
@@ -234,25 +218,7 @@ mcpServers:
       "isNamespace": false,
       "position": { "row": 0, "column": 0 }
     }
-  ]
-}
-```
-
-### 5. find_exports
-
-查找代码中的所有导出语句。
-
-**参数：**
-
-- `code` (string, 必需): 要解析的源代码
-- `filename` (string, 必需): 文件名
-
-**返回：**
-
-```json
-{
-  "success": true,
-  "count": 2,
+  ],
   "exports": [
     {
       "name": "myFunction",
@@ -260,25 +226,7 @@ mcpServers:
       "isDefault": false,
       "position": { "row": 10, "column": 0 }
     }
-  ]
-}
-```
-
-### 6. find_types
-
-查找代码中的所有类型定义（接口、类型别名、枚举）。
-
-**参数：**
-
-- `code` (string, 必需): 要解析的源代码
-- `filename` (string, 必需): 文件名
-
-**返回：**
-
-```json
-{
-  "success": true,
-  "count": 3,
+  ],
   "types": [
     {
       "name": "MyInterface",
@@ -290,82 +238,26 @@ mcpServers:
         "end": {"row": 5, "column": 1}
       }
     }
-  ]
+  ],
+  "hasVueTemplate": true,
+  "cacheSize": 1
 }
 ```
 
-### 7. find_variables
+**说明：**
 
-查找代码中的所有变量声明。
-
-**参数：**
-
-- `code` (string, 必需): 要解析的源代码
-- `filename` (string, 必需): 文件名
-
-**返回：**
-
-```json
-{
-  "success": true,
-  "count": 5,
-  "variables": [
-    {
-      "name": "myVariable",
-      "type": "string",
-      "value": "\"hello\"",
-      "isConst": true,
-      "position": { "row": 0, "column": 0 }
-    }
-  ]
-}
-```
-
-### 8. analyze_vue_template
-
-分析 Vue 模板的指令、绑定、事件和组件。
-
-**参数：**
-
-- `code` (string, 必需): Vue SFC 源代码
-- `filename` (string, 必需): 文件名（必须以 .vue 结尾）
-
-**返回：**
-
-```json
-{
-  "success": true,
-  "template": {
-    "directives": [
-      {
-        "name": "v-if",
-        "value": "isVisible",
-        "position": { "row": 5, "column": 4 }
-      }
-    ],
-    "bindings": [
-      {
-        "name": "class",
-        "value": "{ active: isActive }",
-        "position": { "row": 6, "column": 4 }
-      }
-    ],
-    "events": [
-      {
-        "name": "click",
-        "handler": "handleClick",
-        "position": { "row": 7, "column": 4 }
-      }
-    ],
-    "components": [
-      {
-        "name": "MyComponent",
-        "position": { "row": 8, "column": 4 }
-      }
-    ]
-  }
-}
-```
+- 服务器会从文件系统读取文件内容，而不是接收代码字符串
+- 文件路径支持相对路径和绝对路径
+- 支持智能缓存机制，相同文件的重复解析会使用缓存
+- 自动检测文件类型（TypeScript、JavaScript、Vue）
+- 一次性返回所有 AST 信息，包括：
+  - 函数定义（函数声明、箭头函数、方法等）
+  - 类定义（包括继承、实现接口、方法和属性）
+  - 变量声明（const、let、var）
+  - 导入语句
+  - 导出语句
+  - 类型定义（接口、类型别名、枚举）
+  - Vue 模板信息（指令、绑定、事件、组件）
 
 ## 许可证
 

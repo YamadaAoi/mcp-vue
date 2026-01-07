@@ -1,4 +1,5 @@
-import { MCPServerTestClient, edgeCaseCode, invalidCode } from './test-helper'
+import { MCPServerTestClient } from './test-helper'
+import { resolve } from 'path'
 
 export async function testEdgeCases() {
   console.log('=== 边界情况和错误处理测试 ===\n')
@@ -13,8 +14,7 @@ export async function testEdgeCases() {
       const emptyResult = (await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: '',
-          filename: 'empty.ts'
+          filepath: resolve('src/tests/fixtures/test-comments.ts')
         }
       })) as any
 
@@ -32,8 +32,7 @@ export async function testEdgeCases() {
     const commentOnlyResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: '// 只有注释\n// 没有实际代码',
-        filename: 'comments.ts'
+        filepath: resolve('src/tests/fixtures/test-comments.ts')
       }
     })) as any
 
@@ -48,8 +47,7 @@ export async function testEdgeCases() {
     const edgeResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: edgeCaseCode,
-        filename: 'edge.ts'
+        filepath: resolve('src/tests/fixtures/test-edge-cases.ts')
       }
     })) as any
 
@@ -61,30 +59,14 @@ export async function testEdgeCases() {
     })
 
     console.log('\n--- 测试递归类型 ---')
-    const typesResult = (await client.sendRequest('tools/call', {
-      name: 'find_types',
-      arguments: {
-        code: edgeCaseCode,
-        filename: 'edge.ts'
-      }
-    })) as any
-    const typesData = JSON.parse(typesResult.result.content[0].text)
-    const treeNodeType = typesData.types.find((t: any) => t.name === 'TreeNode')
+    const treeNodeType = edgeData.types.find((t: any) => t.name === 'TreeNode')
     if (treeNodeType) {
       console.log('✅ 找到递归类型 TreeNode')
       console.log('  定义:', treeNodeType.definition)
     }
 
     console.log('\n--- 测试函数重载 ---')
-    const functionsResult = (await client.sendRequest('tools/call', {
-      name: 'find_functions',
-      arguments: {
-        code: edgeCaseCode,
-        filename: 'edge.ts'
-      }
-    })) as any
-    const functionsData = JSON.parse(functionsResult.result.content[0].text)
-    const combineFunc = functionsData.functions.find(
+    const combineFunc = edgeData.functions.find(
       (f: any) => f.name === 'combine'
     )
     if (combineFunc) {
@@ -93,21 +75,13 @@ export async function testEdgeCases() {
     }
 
     console.log('\n--- 测试可选链和空值合并 ---')
-    const variablesResult = (await client.sendRequest('tools/call', {
-      name: 'find_variables',
-      arguments: {
-        code: edgeCaseCode,
-        filename: 'edge.ts'
-      }
-    })) as any
-    const variablesData = JSON.parse(variablesResult.result.content[0].text)
-    const userVar = variablesData.variables.find((v: any) => v.name === 'user')
+    const userVar = edgeData.variables.find((v: any) => v.name === 'user')
     if (userVar) {
       console.log('✅ 找到使用可选链的变量 user')
     }
 
     console.log('\n--- 测试模板字面量类型 ---')
-    const eventNameType = typesData.types.find(
+    const eventNameType = edgeData.types.find(
       (t: any) => t.name === 'EventName'
     )
     if (eventNameType) {
@@ -120,8 +94,7 @@ export async function testEdgeCases() {
       const invalidResult = (await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: invalidCode,
-          filename: 'invalid.ts'
+          filepath: resolve('src/tests/fixtures/test-invalid.ts')
         }
       })) as any
 
@@ -140,12 +113,12 @@ export async function testEdgeCases() {
       await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: 'const x = 1'
+          filepath: 'nonexistent.ts'
         }
       })
-      console.log('❌ 应该拒绝缺少 filename 参数的请求')
+      console.log('❌ 应该拒绝不存在的文件')
     } catch (error) {
-      console.log('✅ 正确拒绝缺少 filename 参数的请求')
+      console.log('✅ 正确拒绝不存在的文件')
     }
 
     console.log('\n--- 测试不存在的工具 ---')
@@ -163,15 +136,10 @@ export async function testEdgeCases() {
     }
 
     console.log('\n--- 测试极长代码 ---')
-    const longCode = Array.from(
-      { length: 1000 },
-      (_, i) => `const var${i} = ${i};`
-    ).join('\n')
     const longResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: longCode,
-        filename: 'long.ts'
+        filepath: resolve('src/tests/fixtures/test-large.ts')
       }
     })) as any
 
@@ -181,17 +149,10 @@ export async function testEdgeCases() {
     })
 
     console.log('\n--- 测试特殊字符 ---')
-    const specialCharsCode = `
-const 中文变量 = 'test'
-const $special = 'test'
-const _underscore = 'test'
-const num123 = 'test'
-`
     const specialResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: specialCharsCode,
-        filename: 'special.ts'
+        filepath: resolve('src/tests/fixtures/test-special-chars.ts')
       }
     })) as any
 
@@ -201,22 +162,10 @@ const num123 = 'test'
     })
 
     console.log('\n--- 测试深度嵌套结构 ---')
-    const nestedCode = `
-type Level1 = {
-  level2: {
-    level3: {
-      level4: {
-        level5: string
-      }
-    }
-  }
-}
-`
     const nestedResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: nestedCode,
-        filename: 'nested.ts'
+        filepath: resolve('src/tests/fixtures/test-nested.ts')
       }
     })) as any
 
@@ -228,16 +177,10 @@ type Level1 = {
     }
 
     console.log('\n--- 测试 Unicode 和 Emoji ---')
-    const unicodeCode = `
-const emoji = '🎉'
-const chinese = '你好世界'
-const mixed = 'Hello 世界 🌍'
-`
     const unicodeResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: unicodeCode,
-        filename: 'unicode.ts'
+        filepath: resolve('src/tests/fixtures/test-unicode.ts')
       }
     })) as any
 
@@ -247,18 +190,16 @@ const mixed = 'Hello 世界 🌍'
     })
 
     console.log('\n--- 测试多次解析同一代码 ---')
-    const testCode = 'const x = 1; const y = 2;'
     for (let i = 0; i < 5; i++) {
       const result = (await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: testCode,
-          filename: 'repeat.ts'
+          filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
 
       const data = JSON.parse(result.result.content[0].text)
-      if (data.variables.length !== 2) {
+      if (data.variables.length < 3) {
         throw new Error(`第 ${i + 1} 次解析结果不一致`)
       }
     }

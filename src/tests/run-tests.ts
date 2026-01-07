@@ -6,6 +6,8 @@ import { testComplexTypeScript } from './test-complex-typescript'
 import { testComplexVue } from './test-complex-vue'
 import { testEdgeCases } from './test-edge-cases'
 import { testPerformance } from './test-performance'
+import { testRelativePath } from './test-relative-path'
+import { testComplexRelativePaths } from './test-complex-relative-paths'
 
 async function runAllTests() {
   console.log('╔════════════════════════════════════════╗')
@@ -20,7 +22,9 @@ async function runAllTests() {
     { name: '复杂 TypeScript 解析', fn: testComplexTypeScript },
     { name: '复杂 Vue 解析', fn: testComplexVue },
     { name: '边界情况', fn: testEdgeCases },
-    { name: '性能测试', fn: testPerformance }
+    { name: '性能测试', fn: testPerformance },
+    { name: '相对路径', fn: testRelativePath },
+    { name: '复杂相对路径', fn: testComplexRelativePaths }
   ]
 
   const failedTests: string[] = []
@@ -57,7 +61,9 @@ async function runSpecificTest(testName: string) {
     complexTypescript: testComplexTypeScript,
     complexVue: testComplexVue,
     edgeCases: testEdgeCases,
-    performance: testPerformance
+    performance: testPerformance,
+    relativePath: testRelativePath,
+    complexRelativePaths: testComplexRelativePaths
   }
 
   const test = tests[testName]

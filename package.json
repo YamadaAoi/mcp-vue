@@ -20,10 +20,6 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "test": "npx tsx src/tests/run-tests.ts",
-    "test:basic": "npx tsx src/tests/run-tests.ts basic",
-    "test:typescript": "npx tsx src/tests/run-tests.ts typescript",
-    "test:vue": "npx tsx src/tests/run-tests.ts vue",
-    "test:concurrency": "npx tsx src/tests/run-tests.ts concurrency",
     "prepare": "simple-git-hooks"
   },
   "repository": {

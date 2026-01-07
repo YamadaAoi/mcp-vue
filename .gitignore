@@ -5,3 +5,4 @@ dist/
 .env
 .env.local
 .eslintcache
+mcp-vue.config.example.json

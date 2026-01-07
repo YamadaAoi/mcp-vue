@@ -1,4 +1,5 @@
-import { MCPServerTestClient, testCode, largeCode } from './test-helper'
+import { MCPServerTestClient } from './test-helper'
+import { resolve } from 'path'
 
 export async function testPerformance() {
   console.log('=== 性能测试 ===\n')
@@ -13,8 +14,7 @@ export async function testPerformance() {
     const singleResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: testCode,
-        filename: 'test.ts'
+        filepath: resolve('src/tests/fixtures/test-simple.ts')
       }
     })) as any
     const singleEndTime = Date.now()
@@ -30,8 +30,7 @@ export async function testPerformance() {
       const result = (await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: testCode,
-          filename: `test${i}.ts`
+          filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
       JSON.parse(result.result.content[0].text)
@@ -49,8 +48,7 @@ export async function testPerformance() {
     const largeResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: largeCode,
-        filename: 'large.ts'
+        filepath: resolve('src/tests/fixtures/test-large.ts')
       }
     })) as any
     const largeEndTime = Date.now()
@@ -65,12 +63,11 @@ export async function testPerformance() {
     const concurrentCount = 5
     const concurrentStartTime = Date.now()
 
-    const concurrentRequests = Array.from({ length: concurrentCount }, (_, i) =>
+    const concurrentRequests = Array.from({ length: concurrentCount }, () =>
       client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: testCode,
-          filename: `concurrent${i}.ts`
+          filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })
     )
@@ -90,37 +87,21 @@ export async function testPerformance() {
     )
 
     console.log('\n--- 测试不同工具的性能 ---')
-    const tools = [
-      'parse_code',
-      'find_functions',
-      'find_classes',
-      'find_types',
-      'find_exports'
-    ]
-    const toolTimes: Record<string, number> = {}
+    const toolStartTime = Date.now()
+    const result = (await client.sendRequest('tools/call', {
+      name: 'parse_code',
+      arguments: {
+        filepath: resolve('src/tests/fixtures/test-simple.ts')
+      }
+    })) as any
+    const toolEndTime = Date.now()
 
-    for (const tool of tools) {
-      const toolStartTime = Date.now()
-      const result = (await client.sendRequest('tools/call', {
-        name: tool,
-        arguments: {
-          code: testCode,
-          filename: 'test.ts'
-        }
-      })) as any
-      const toolEndTime = Date.now()
-
-      JSON.parse(result.result.content[0].text)
-      toolTimes[tool] = toolEndTime - toolStartTime
-    }
-
-    console.log('✅ 各工具性能:')
-    Object.entries(toolTimes).forEach(([tool, time]) => {
-      console.log(`  ${tool}: ${time}ms`)
-    })
+    JSON.parse(result.result.content[0].text)
+    const toolTime = toolEndTime - toolStartTime
+    console.log('✅ parse_code 工具性能:')
+    console.log(`  parse_code: ${toolTime}ms`)
 
     console.log('\n--- 测试缓存性能 ---')
-    const cacheKey = 'cache-test.ts'
     const cacheIterations = 5
 
     const cacheStartTime = Date.now()
@@ -128,8 +109,7 @@ export async function testPerformance() {
       const result = (await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: testCode,
-          filename: cacheKey
+          filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
       JSON.parse(result.result.content[0].text)
@@ -151,8 +131,7 @@ export async function testPerformance() {
       const result = (await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: testCode,
-          filename: `memory${i}.ts`
+          filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
       JSON.parse(result.result.content[0].text)
@@ -183,8 +162,7 @@ export async function testPerformance() {
       const result = (await client.sendRequest('tools/call', {
         name: 'parse_code',
         arguments: {
-          code: testCode,
-          filename: `stability${i}.ts`
+          filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
       const endTime = Date.now()

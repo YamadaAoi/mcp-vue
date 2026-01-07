@@ -1,4 +1,5 @@
-import { MCPServerTestClient, testCode } from './test-helper'
+import { MCPServerTestClient } from './test-helper'
+import { resolve } from 'path'
 
 export async function testConcurrency() {
   console.log('=== 并发处理测试 ===\n')
@@ -14,16 +15,16 @@ export async function testConcurrency() {
 
     const concurrentRequests = [
       client.sendRequest('tools/call', {
-        name: 'find_functions',
-        arguments: { code: testCode, filename: 'test1.ts' }
+        name: 'parse_code',
+        arguments: { filepath: resolve('src/tests/fixtures/test-simple.ts') }
       }),
       client.sendRequest('tools/call', {
-        name: 'find_classes',
-        arguments: { code: testCode, filename: 'test2.ts' }
+        name: 'parse_code',
+        arguments: { filepath: resolve('src/tests/fixtures/test-simple.ts') }
       }),
       client.sendRequest('tools/call', {
-        name: 'find_types',
-        arguments: { code: testCode, filename: 'test3.ts' }
+        name: 'parse_code',
+        arguments: { filepath: resolve('src/tests/fixtures/test-simple.ts') }
       })
     ]
 

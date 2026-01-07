@@ -1,52 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, appendFileSync } from 'node:fs'
+import { existsSync, mkdirSync, appendFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import {
+  getConfigManager,
+  type LoggerConfig,
+  LogLevel,
+  LOG_LEVEL_MAPPING,
+  parseLogLevel
+} from './config'
 
-const PACKAGE_JSON_FILE = 'package.json' as const
-const PNPM_WORKSPACE_FILE = 'pnpm-workspace.yaml' as const
-const LERNA_CONFIG_FILE = 'lerna.json' as const
-const GIT_DIR = '.git' as const
-const CONFIG_FILE = 'mcp-vue.config.json' as const
-const LOG_FILE_EXTENSION = '.log' as const
-const DATE_SEPARATOR = '-' as const
-
-function findProjectRoot(): string {
-  let currentDir = process.cwd()
-
-  while (currentDir !== dirname(currentDir)) {
-    const packageJsonPath = resolve(currentDir, PACKAGE_JSON_FILE)
-
-    if (existsSync(packageJsonPath)) {
-      try {
-        const packageJson = JSON.parse(
-          readFileSync(packageJsonPath, 'utf-8')
-        ) as { workspaces?: unknown }
-
-        const hasWorkspaces = Boolean(packageJson.workspaces)
-        const hasMonorepoConfig =
-          existsSync(resolve(currentDir, PNPM_WORKSPACE_FILE)) ||
-          existsSync(resolve(currentDir, LERNA_CONFIG_FILE))
-        const hasGit = existsSync(resolve(currentDir, GIT_DIR))
-
-        if (hasWorkspaces || hasMonorepoConfig || hasGit) {
-          return currentDir
-        }
-      } catch {
-        continue
-      }
-    }
-    currentDir = dirname(currentDir)
-  }
-
-  return process.cwd()
-}
-
-const PROJECT_ROOT = findProjectRoot()
-
-enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3
+interface LogEntry {
+  timestamp: string
+  level: string
+  message: string
+  data?: unknown
 }
 
 const CONSOLE_COLORS = {
@@ -56,30 +22,8 @@ const CONSOLE_COLORS = {
   [LogLevel.ERROR]: '31'
 } as const
 
-const LOG_LEVEL_MAPPING = {
-  DEBUG: LogLevel.DEBUG,
-  INFO: LogLevel.INFO,
-  WARN: LogLevel.WARN,
-  ERROR: LogLevel.ERROR
-} as const
-
-interface LogEntry {
-  timestamp: string
-  level: string
-  message: string
-  data?: unknown
-}
-
-interface LoggerConfig {
-  level?: LogLevel | string
-  logFile?: string | null
-  enableConsole?: boolean
-  enableFile?: boolean
-}
-
-interface MCPConfig {
-  logging?: LoggerConfig
-}
+const LOG_FILE_EXTENSION = '.log' as const
+const DATE_SEPARATOR = '-' as const
 
 export class Logger {
   #level: LogLevel
@@ -88,41 +32,27 @@ export class Logger {
   #currentDate: string
   #enableConsole: boolean
   #enableFile: boolean
+  #projectRoot: string
 
   constructor(options?: LoggerConfig) {
-    const config = this.#loadConfig()
+    const config = getConfigManager()
 
-    this.#level = this.#parseLogLevel(options?.level ?? config?.level ?? 'INFO')
-    this.#logFileBase =
-      options?.logFile ?? config?.logFile ?? 'logs/mcp-vue.log'
+    this.#level = options?.level
+      ? parseLogLevel(options.level)
+      : config.logLevel
+    this.#logFileBase = options?.logFile ?? config.logFile
+    this.#enableConsole = options?.enableConsole ?? config.enableConsole
+    this.#enableFile = options?.enableFile ?? config.enableFile
+    this.#projectRoot = config.projectRoot
     this.#currentDate = this.#getCurrentDate()
     this.#logFile = this.#generateLogFilePath()
-    this.#enableConsole =
-      options?.enableConsole ?? config?.enableConsole ?? true
-    this.#enableFile = options?.enableFile ?? config?.enableFile ?? true
 
     if (this.#enableFile && this.#logFile) {
       this.#ensureLogDirectory()
     }
   }
 
-  #loadConfig(): LoggerConfig | null {
-    const configPath = resolve(PROJECT_ROOT, CONFIG_FILE)
-
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8')
-        const config: MCPConfig = JSON.parse(content) as MCPConfig
-        return config.logging || null
-      } catch (error) {
-        console.warn(`Failed to load config from ${configPath}:`, error)
-      }
-    }
-
-    return null
-  }
-
-  #parseLogLevel(level: LogLevel | string): LogLevel {
+  parseLogLevel(level: LogLevel | string): LogLevel {
     if (typeof level === 'number') {
       return level
     }
@@ -157,7 +87,7 @@ export class Logger {
       ''
     )
     return resolve(
-      PROJECT_ROOT,
+      this.#projectRoot,
       `${baseName}${DATE_SEPARATOR}${this.#currentDate}${LOG_FILE_EXTENSION}`
     )
   }
@@ -233,7 +163,7 @@ export class Logger {
   }
 
   setLevel(level: LogLevel | string): void {
-    this.#level = this.#parseLogLevel(level)
+    this.#level = this.parseLogLevel(level)
   }
 
   getLevel(): LogLevel {

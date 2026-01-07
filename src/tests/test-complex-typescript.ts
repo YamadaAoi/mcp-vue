@@ -1,8 +1,5 @@
-import {
-  MCPServerTestClient,
-  complexTypeScriptCode,
-  largeCode
-} from './test-helper'
+import { MCPServerTestClient } from './test-helper'
+import { resolve } from 'path'
 
 export async function testComplexTypeScript() {
   console.log('=== 复杂 TypeScript 解析测试 ===\n')
@@ -16,8 +13,7 @@ export async function testComplexTypeScript() {
     const complexParseResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: complexTypeScriptCode,
-        filename: 'complex.ts'
+        filepath: resolve('src/tests/fixtures/test-complex-typescript.ts')
       }
     })) as any
 
@@ -30,20 +26,12 @@ export async function testComplexTypeScript() {
     })
 
     console.log('\n--- 测试泛型类解析 ---')
-    const classesResult = (await client.sendRequest('tools/call', {
-      name: 'find_classes',
-      arguments: {
-        code: complexTypeScriptCode,
-        filename: 'complex.ts'
-      }
-    })) as any
-    const classesData = JSON.parse(classesResult.result.content[0].text)
     console.log(
       '✅ 找到类:',
-      classesData.classes.map((c: any) => c.name).join(', ')
+      complexData.classes.map((c: any) => c.name).join(', ')
     )
 
-    const repositoryClass = classesData.classes.find(
+    const repositoryClass = complexData.classes.find(
       (c: any) => c.name === 'Repository'
     )
     if (repositoryClass) {
@@ -57,7 +45,7 @@ export async function testComplexTypeScript() {
     }
 
     console.log('\n--- 测试装饰器解析 ---')
-    const calculatorClass = classesData.classes.find(
+    const calculatorClass = complexData.classes.find(
       (c: any) => c.name === 'Calculator'
     )
     if (calculatorClass) {
@@ -76,15 +64,7 @@ export async function testComplexTypeScript() {
     }
 
     console.log('\n--- 测试枚举解析 ---')
-    const typesResult = (await client.sendRequest('tools/call', {
-      name: 'find_types',
-      arguments: {
-        code: complexTypeScriptCode,
-        filename: 'complex.ts'
-      }
-    })) as any
-    const typesData = JSON.parse(typesResult.result.content[0].text)
-    const enumTypes = typesData.types.filter((t: any) => t.kind === 'enum')
+    const enumTypes = complexData.types.filter((t: any) => t.kind === 'enum')
     console.log('✅ 找到枚举:', enumTypes.map((e: any) => e.name).join(', '))
 
     const userRoleEnum = enumTypes.find((e: any) => e.name === 'UserRole')
@@ -96,7 +76,7 @@ export async function testComplexTypeScript() {
     }
 
     console.log('\n--- 测试命名空间解析 ---')
-    const namespaceTypes = typesData.types.filter(
+    const namespaceTypes = complexData.types.filter(
       (t: any) => t.kind === 'namespace'
     )
     console.log(
@@ -113,7 +93,7 @@ export async function testComplexTypeScript() {
     }
 
     console.log('\n--- 测试联合类型解析 ---')
-    const unionTypes = typesData.types.filter(
+    const unionTypes = complexData.types.filter(
       (t: any) =>
         t.kind === 'type' && t.definition && t.definition.includes('|')
     )
@@ -126,8 +106,7 @@ export async function testComplexTypeScript() {
     const largeParseResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        code: largeCode,
-        filename: 'large.ts'
+        filepath: resolve('src/tests/fixtures/test-large.ts')
       }
     })) as any
 
@@ -140,18 +119,8 @@ export async function testComplexTypeScript() {
     })
 
     console.log('\n--- 测试多个类的方法解析 ---')
-    const largeClassesResult = (await client.sendRequest('tools/call', {
-      name: 'find_classes',
-      arguments: {
-        code: largeCode,
-        filename: 'large.ts'
-      }
-    })) as any
-    const largeClassesData = JSON.parse(
-      largeClassesResult.result.content[0].text
-    )
-    console.log(`✅ 找到 ${largeClassesData.count} 个类`)
-    largeClassesData.classes.forEach((cls: any) => {
+    console.log(`✅ 找到 ${largeData.classes.length} 个类`)
+    largeData.classes.forEach((cls: any) => {
       console.log(`  ${cls.name}: ${cls.methods?.length || 0} 个方法`)
     })
 
@@ -165,22 +134,14 @@ export async function testComplexTypeScript() {
     })
 
     console.log('\n--- 测试默认导出 ---')
-    const exportsResult = (await client.sendRequest('tools/call', {
-      name: 'find_exports',
-      arguments: {
-        code: complexTypeScriptCode,
-        filename: 'complex.ts'
-      }
-    })) as any
-    const exportsData = JSON.parse(exportsResult.result.content[0].text)
-    const defaultExports = exportsData.exports.filter((e: any) => e.isDefault)
+    const defaultExports = complexData.exports.filter((e: any) => e.isDefault)
     console.log(
       '✅ 找到默认导出:',
       defaultExports.map((e: any) => e.name).join(', ') || '无'
     )
 
     console.log('\n--- 测试具名导出 ---')
-    const namedExports = exportsData.exports.filter((e: any) => !e.isDefault)
+    const namedExports = complexData.exports.filter((e: any) => !e.isDefault)
     console.log(`✅ 找到 ${namedExports.length} 个具名导出`)
     console.log('  导出列表:', namedExports.map((e: any) => e.name).join(', '))
 
