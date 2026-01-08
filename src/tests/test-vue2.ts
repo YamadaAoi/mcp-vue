@@ -1,10 +1,11 @@
 import { MCPServerTestClient } from './test-helper'
 import { resolve } from 'node:path'
 
-export async function testVue() {
-  console.log('=== Vue 解析测试 ===\n')
-
+export async function testVue2Features(): Promise<boolean> {
   const client = new MCPServerTestClient()
+  const testFile = resolve('src/tests/fixtures/test-vue2.vue')
+
+  console.log('=== Vue2 特性测试 ===\n')
 
   try {
     await client.initialize()
@@ -13,7 +14,7 @@ export async function testVue() {
     const parseResult = (await client.sendRequest('tools/call', {
       name: 'parse_code',
       arguments: {
-        filepath: resolve('src/tests/fixtures/test-vue.vue')
+        filepath: testFile
       }
     })) as any
 
@@ -25,9 +26,11 @@ export async function testVue() {
     await client.shutdown()
     await client.close()
 
-    console.log('\n✅ Vue 解析测试通过\n')
+    console.log('\n✅ Vue2 特性测试通过\n')
+    return true
   } catch (error) {
     await client.close()
-    throw error
+    console.error('Error testing Vue2 features:', error)
+    return false
   }
 }

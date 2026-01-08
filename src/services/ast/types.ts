@@ -10,12 +10,14 @@ export interface ParseResult {
   language: string
   ast: ASTNode
   functions: FunctionInfo[]
+  functionCalls: FunctionCallInfo[]
   classes: ClassInfo[]
   variables: VariableInfo[]
   imports: ImportInfo[]
   exports: ExportInfo[]
   types: TypeInfo[]
   vueTemplate?: VueTemplateInfo
+  vueOptionsAPI?: VueOptionsAPIInfo
 }
 
 export interface FunctionInfo {
@@ -25,6 +27,13 @@ export interface FunctionInfo {
   returnType?: string
   isAsync: boolean
   isGenerator: boolean
+  startPosition: { row: number; column: number }
+  endPosition: { row: number; column: number }
+}
+
+export interface FunctionCallInfo {
+  name: string
+  arguments: string[]
   startPosition: { row: number; column: number }
   endPosition: { row: number; column: number }
 }
@@ -129,6 +138,14 @@ export interface VueTemplateInfo {
   components: string[]
 }
 
+export interface VueOptionsAPIInfo {
+  dataProperties: string[]
+  computedProperties: string[]
+  watchProperties: string[]
+  methods: string[]
+  lifecycleHooks: string[]
+}
+
 export interface DirectiveInfo {
   name: string
   value?: string
@@ -150,4 +167,116 @@ export interface EventInfo {
   modifiers: string[]
   element: string
   startPosition: { row: number; column: number }
+}
+
+export interface MappedParseResult {
+  success: boolean
+  language: string
+  functions: Array<{
+    name: string
+    type: string
+    parameters: string[]
+    returnType?: string
+    position: {
+      start: { row: number; column: number }
+      end: { row: number; column: number }
+    }
+  }>
+  functionCalls: Array<{
+    name: string
+    arguments: string[]
+    position: {
+      start: { row: number; column: number }
+      end: { row: number; column: number }
+    }
+  }>
+  classes: Array<{
+    name: string
+    extends?: string
+    implements?: string[]
+    methods: Array<{
+      name: string
+      parameters: string[]
+      returnType?: string
+    }>
+    properties: Array<{
+      name: string
+      type?: string
+      isReadonly: boolean
+      visibility?: 'public' | 'private' | 'protected'
+    }>
+    position: {
+      start: { row: number; column: number }
+      end: { row: number; column: number }
+    }
+  }>
+  variables: Array<{
+    name: string
+    type?: string
+    value?: string
+    isConst: boolean
+    position: { row: number; column: number }
+  }>
+  imports: Array<{
+    source: string
+    imports: string[]
+    isDefault: boolean
+    isNamespace: boolean
+    position: { row: number; column: number }
+  }>
+  exports: Array<{
+    name: string
+    type: 'function' | 'class' | 'variable' | 'type'
+    isDefault: boolean
+    position: { row: number; column: number }
+  }>
+  types: Array<{
+    name: string
+    kind: 'interface' | 'type' | 'enum' | 'class'
+    properties: Array<{
+      name: string
+      type?: string
+      isOptional: boolean
+      isReadonly: boolean
+    }>
+    methods: Array<{
+      name: string
+      parameters: string[]
+      returnType?: string
+    }>
+    position: {
+      start: { row: number; column: number }
+      end: { row: number; column: number }
+    }
+  }>
+  vueTemplate?: {
+    directives: Array<{
+      name: string
+      value?: string
+      modifiers: string[]
+      element: string
+      startPosition: { row: number; column: number }
+    }>
+    bindings: Array<{
+      name: string
+      expression: string
+      element: string
+      startPosition: { row: number; column: number }
+    }>
+    events: Array<{
+      name: string
+      handler: string
+      modifiers: string[]
+      element: string
+      startPosition: { row: number; column: number }
+    }>
+    components: string[]
+  }
+  vueOptionsAPI?: {
+    dataProperties: string[]
+    computedProperties: string[]
+    watchProperties: string[]
+    methods: string[]
+    lifecycleHooks: string[]
+  }
 }

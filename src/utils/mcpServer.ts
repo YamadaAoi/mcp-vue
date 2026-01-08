@@ -196,7 +196,10 @@ export class MCPServer {
   async #handleRequest(request: JSONRPCRequest): Promise<JSONRPCResponse> {
     const { method, id } = request
 
-    this.#logger.debug(`Received request: ${method}`, { id })
+    this.#logger.debug(`Received request: ${method}`, {
+      id,
+      params: request.params
+    })
 
     try {
       if (!isValidMethod(method)) {
@@ -213,7 +216,15 @@ export class MCPServer {
 
       const handler = this.#requestHandlers.get(method)
       if (handler) {
-        return handler(id ?? null, request) as Promise<JSONRPCResponse>
+        const response = await Promise.resolve(
+          handler(id ?? null, request) as Promise<JSONRPCResponse>
+        )
+        this.#logger.debug(`Sending response: ${method}`, {
+          id,
+          result: response.result,
+          error: response.error
+        })
+        return response
       }
 
       this.#logger.warn(`Unknown method: ${method}`)
@@ -277,17 +288,30 @@ export class MCPServer {
         const result = registration.handler(args || {})
         const resolvedResult = await Promise.resolve(result)
         this.#logger.info(`Tool executed successfully: ${name}`)
-        return {
-          jsonrpc: JSONRPC_VERSION,
-          result: {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(resolvedResult, null, 2)
-              }
-            ]
-          },
-          id
+
+        const toolResult = resolvedResult as {
+          content?: Array<{ type: string; text: string }>
+        }
+
+        if (toolResult.content && Array.isArray(toolResult.content)) {
+          return {
+            jsonrpc: JSONRPC_VERSION,
+            result: toolResult,
+            id
+          }
+        } else {
+          return {
+            jsonrpc: JSONRPC_VERSION,
+            result: {
+              content: [
+                {
+                  type: 'text',
+                  text: String(resolvedResult)
+                }
+              ]
+            },
+            id
+          }
         }
       } catch (error) {
         this.#logger.error(`Tool execution failed: ${name}`, error)

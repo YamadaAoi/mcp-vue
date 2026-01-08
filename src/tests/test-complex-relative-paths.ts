@@ -37,13 +37,10 @@ export async function testComplexRelativePaths() {
         }
       })) as any
 
-      const data = JSON.parse(result.result.content[0].text)
-      console.log('✅ 解析成功:', {
-        函数: data.functions.length,
-        类: data.classes.length,
-        类型: data.types.length,
-        变量: data.variables.length
-      })
+      const summary = result.result.content[0].text
+      console.log('✅ 解析成功')
+      console.log('\n解析结果摘要:')
+      console.log(summary)
     }
 
     console.log('\n--- 测试缓存一致性 ---')
@@ -59,13 +56,11 @@ export async function testComplexRelativePaths() {
       arguments: { filepath: path }
     })) as any
 
-    const data1 = JSON.parse(result1.result.content[0].text)
-    const data2 = JSON.parse(result2.result.content[0].text)
+    const summary1 = result1.result.content[0].text
+    const summary2 = result2.result.content[0].text
 
     console.log('✅ 两次解析结果一致:', {
-      函数数量相同: data1.functions.length === data2.functions.length,
-      类数量相同: data1.classes.length === data2.classes.length,
-      变量数量相同: data1.variables.length === data2.variables.length
+      摘要相同: summary1 === summary2
     })
 
     await client.shutdown()

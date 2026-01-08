@@ -18,13 +18,12 @@ export async function testRelativePath() {
       }
     })) as any
 
-    const data = JSON.parse(result.result.content[0].text)
+    const summary = result.result.content[0].text
     console.log('✅ 相对路径解析成功:', {
-      文件路径: relativePath,
-      函数: data.functions.length,
-      类: data.classes.length,
-      变量: data.variables.length
+      文件路径: relativePath
     })
+    console.log('\n解析结果摘要:')
+    console.log(summary)
 
     console.log('\n--- 测试第二次解析（应该命中缓存）---')
     const result2 = (await client.sendRequest('tools/call', {
@@ -34,13 +33,12 @@ export async function testRelativePath() {
       }
     })) as any
 
-    const data2 = JSON.parse(result2.result.content[0].text)
+    const summary2 = result2.result.content[0].text
     console.log('✅ 第二次解析成功:', {
-      文件路径: relativePath,
-      函数: data2.functions.length,
-      类: data2.classes.length,
-      变量: data2.variables.length
+      文件路径: relativePath
     })
+    console.log('\n解析结果摘要:')
+    console.log(summary2)
 
     await client.shutdown()
     await client.close()

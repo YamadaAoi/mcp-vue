@@ -1,4 +1,5 @@
 export { extractFunctions } from './functionExtractor'
+export { extractFunctionCalls } from './functionCallExtractor'
 export { extractClasses } from './classExtractor'
 export { extractVariables } from './variableExtractor'
 export { extractImports } from './importExtractor'

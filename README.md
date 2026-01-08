@@ -8,14 +8,27 @@
 - 📝 支持 TypeScript、JavaScript 和 Vue 单文件组件 (SFC)
 - 🔍 提取函数、类、变量、导入、导出和类型定义
 - 🎯 支持 Vue 模板分析（指令、绑定、事件、组件）
+- 📊 生成人类可读的 Markdown 格式代码分析摘要
 - ⚡ 高性能并发请求处理
-- � 智能缓存机制，减少重复解析开销
+- 💾 智能缓存机制，减少重复解析开销
 - 🔄 解析器池管理，优化资源利用
-- � 内置日志系统，支持控制台和文件输出
-- 🔧 灵活的环境变量配置
+- 📝 内置日志系统，支持控制台和文件输出
+- 🔧 灵活的命令行参数配置
 - ✨ 完整的类型安全保证
 - 🧪 全面的测试覆盖（基础、复杂场景、边界情况、性能测试）
 - 🛡️ 标准化的错误处理和日志记录
+
+## 安装
+
+```bash
+npm install -g mcp-vue
+```
+
+或使用 npx（推荐）：
+
+```bash
+npx mcp-vue
+```
 
 ## 使用方法
 
@@ -24,76 +37,53 @@
 MCP 服务器通过标准输入/输出进行通信，支持 JSON-RPC 2.0 协议。
 
 ```bash
-# 启动服务器
+# 基本使用（使用当前目录作为 cwd）
 npx mcp-vue
+
+# 指定工作目录
+npx mcp-vue --cwd=./packages/app
+
+# 使用绝对路径
+npx mcp-vue --cwd=D:/projects/my-project/src
+
+# 设置日志级别为 DEBUG
+npx mcp-vue --level=DEBUG
+
+# 禁用文件日志
+npx mcp-vue --no-file
+
+# 禁用控制台输出
+npx mcp-vue --no-console
+
+# 组合使用
+npx mcp-vue --cwd=./packages/app --level=DEBUG --log-file=custom.log
 ```
 
 ## 配置选项
 
-### 配置文件
+MCP 服务器通过命令行参数进行配置，支持以下参数：
 
-MCP 服务器支持通过配置文件来设置工作目录和日志选项。配置文件名为 `mcp-vue.config.json`，应放在项目根目录。
+### 命令行参数
 
-配置文件优先级高于默认值，如果不存在配置文件，则使用默认配置。
+| 参数                | 类型           | 描述                                   | 默认值               |
+| ------------------- | -------------- | -------------------------------------- | -------------------- |
+| `--cwd=<path>`      | string         | 当前工作目录（支持相对路径和绝对路径） | 启动命令的目录       |
+| `--level=<level>`   | string         | 日志级别 (DEBUG, INFO, WARN, ERROR)    | `"INFO"`             |
+| `--log-file=<path>` | string \| null | 日志文件路径，设为 null 禁用文件日志   | `"logs/mcp-vue.log"` |
+| `--no-console`      | flag           | 禁用控制台输出                         | `true`（启用）       |
+| `--no-file`         | flag           | 禁用文件输出                           | `true`（启用）       |
 
-```json
-{
-  "cwd": ".",
-  "logging": {
-    "level": "INFO",
-    "logFile": "logs/mcp-vue.log",
-    "enableConsole": true,
-    "enableFile": true
-  }
-}
-```
+### 路径说明
 
-### 配置项说明
+- **cwd（工作目录）**：用于解析文件路径的基础目录
+  - 如果不指定 `--cwd`，默认使用启动命令时的当前目录
+  - 支持相对路径（相对于启动目录）和绝对路径
+  - 在 workspace 开发中，通常在子包目录启动，可以指定 `--cwd=..` 或 `--cwd=./` 来使用项目根目录
 
-| 配置项          | 类型           | 描述                                                     | 默认值               |
-| --------------- | -------------- | -------------------------------------------------------- | -------------------- |
-| `cwd`           | string         | 当前工作目录（相对于项目根目录）                         | `"."`                |
-| `level`         | string         | 日志级别 (DEBUG, INFO, WARN, ERROR)                      | `"INFO"`             |
-| `logFile`       | string \| null | 日志文件路径（相对于项目根目录），设为 null 禁用文件日志 | `"logs/mcp-vue.log"` |
-| `enableConsole` | boolean        | 是否启用控制台输出                                       | `true`               |
-| `enableFile`    | boolean        | 是否启用文件输出                                         | `true`               |
-
-**路径说明**：
-
-- 配置文件 `mcp-vue.config.json` 必须放在项目根目录
-- `cwd` 配置项用于指定当前工作目录，文件路径将相对于此目录解析
-- 日志文件路径相对于项目根目录解析，无论从哪个目录启动程序
-- 系统会自动识别项目根目录，支持以下场景：
-  - **普通项目**：查找包含 `package.json` 且包含 `.git` 的目录
-  - **Monorepo 项目**：查找包含 `workspaces` 配置、`pnpm-workspace.yaml` 或 `lerna.json` 的根目录
-  - **从子目录启动**：即使从子包或子目录启动，也能正确找到项目根目录
-
-**cwd 配置示例**：
-
-```json
-{
-  "cwd": "."
-}
-```
-
-- `"."`：使用项目根目录作为当前工作目录
-- `"packages/app"`：使用项目根目录下的 `packages/app` 目录
-- `"src"`：使用项目根目录下的 `src` 目录
-- `"D:/projects/my-project/src"`：使用绝对路径（注意路径分隔符使用 `/` 或 `\\`）
-
-**注意事项**：
-
-- 如果配置的 cwd 不存在，系统会回退到项目根目录
-- 文件路径解析会尝试多个可能的路径，包括：
-  - 直接使用提供的路径
-  - 相对于 cwd 的路径
-  - 相对于当前工作目录的路径（绝对路径解析）
-- 绝对路径可以用于指定项目外的目录，例如：
-  ```json
-  {
-    "cwd": "D:/shared-code/common-utils"
-  }
-  ```
+- **文件路径解析**：当调用 `parse_code` 工具时，系统会尝试以下路径：
+  1. 直接使用提供的路径
+  2. 相对于 cwd 的路径
+  3. 绝对路径解析
 
 ### 日志级别说明
 
@@ -117,6 +107,7 @@ mcpServers:
     args:
       - '-y'
       - 'mcp-vue'
+      - '--level=DEBUG'
     type: stdio
 ```
 
@@ -146,10 +137,11 @@ mcpServers:
 
 **注意事项**：
 
-- 所有工具现在都使用 `filepath` 参数而不是 `code` 和 `filename` 参数
-- 文件路径是相对于配置文件中的 `cwd` 或项目根目录的
+- 工具使用 `filepath` 参数指定要分析的文件路径
+- 文件路径是相对于配置的 `cwd` 或项目根目录的
 - 服务器会自动检测文件类型并使用相应的解析器
 - 相同文件的重复解析会使用缓存，提高性能
+- 返回结果为 Markdown 格式的代码分析摘要，便于 AI 理解
 
 ### 配置说明
 
@@ -164,7 +156,7 @@ mcpServers:
 
 ### parse_code
 
-完整解析代码文件并提取所有 AST 信息。这是**主要且推荐**的代码分析工具。
+完整解析代码文件并提取所有 AST 信息，并生成人类可读的 Markdown 格式摘要。这是**主要且推荐**的代码分析工具。
 
 **参数：**
 
@@ -172,77 +164,112 @@ mcpServers:
 
 **返回：**
 
-```json
-{
-  "success": true,
-  "language": "typescript",
-  "functions": [
-    {
-      "name": "myFunction",
-      "type": "function_declaration",
-      "parameters": ["param1", "param2"],
-      "returnType": "string",
-      "position": {
-        "start": { "row": 0, "column": 0 },
-        "end": { "row": 5, "column": 1 }
-      }
-    }
-  ],
-  "classes": [
-    {
-      "name": "MyClass",
-      "extends": "BaseClass",
-      "implements": ["Interface1", "Interface2"],
-      "methods": [...],
-      "properties": [...],
-      "position": {
-        "start": {"row": 10, "column": 0},
-        "end": {"row": 30, "column": 1}
-      }
-    }
-  ],
-  "variables": [
-    {
-      "name": "myVariable",
-      "type": "string",
-      "value": "\"hello\"",
-      "isConst": true,
-      "position": { "row": 0, "column": 0 }
-    }
-  ],
-  "imports": [
-    {
-      "source": "vue",
-      "imports": ["ref", "computed"],
-      "isDefault": false,
-      "isNamespace": false,
-      "position": { "row": 0, "column": 0 }
-    }
-  ],
-  "exports": [
-    {
-      "name": "myFunction",
-      "type": "function",
-      "isDefault": false,
-      "position": { "row": 10, "column": 0 }
-    }
-  ],
-  "types": [
-    {
-      "name": "MyInterface",
-      "kind": "interface",
-      "properties": [...],
-      "methods": [...],
-      "position": {
-        "start": {"row": 0, "column": 0},
-        "end": {"row": 5, "column": 1}
-      }
-    }
-  ],
-  "hasVueTemplate": true,
-  "cacheSize": 1
-}
-```
+返回一个 Markdown 格式的代码分析摘要，包含以下信息：
+
+````markdown
+# Code Analysis: <filepath>
+
+Language: <language>
+
+## Functions (<count>)
+
+- <function_name>(<parameters>) -> <return_type> [<function_type>][L<row>:C<column>]
+  ...
+
+## Function Calls (<count>)
+
+- <function_name>(<arguments>)[L<row>:C<column>]
+  ...
+
+## Classes (<count>)
+
+### <class_name>
+
+**Extends:** <parent_class>
+**Implements:** <interface1>, <interface2>
+
+**Methods:**
+
+- <method_name>(<parameters>) -> <return_type>
+
+**Properties:**
+
+- <property_name>: <type> (<visibility>, <readonly>)
+  ...
+
+## Variables (<count>)
+
+- <variable_name>: <type> = <value> [<const|let|var>][L<row>:C<column>]
+  ...
+
+## Imports (<count>)
+
+- <import_type> <imports> from <source>[L<row>:C<column>]
+  ...
+
+## Exports (<count>)
+
+- <export_type> <export_name> (<export_type>)[L<row>:C<column>]
+  ...
+
+## Types (<count>)
+
+### <type_name> (<kind>)
+
+**Properties:**
+
+- <property_name>: <type> (<optional>, <readonly>)
+
+**Methods:**
+
+- <method_name>(<parameters>) -> <return_type>
+  ...
+
+## Vue Template
+
+**Directives:**
+
+- <directive_name>="<value>" on <element> [L<row>:C<column>]
+
+**Bindings:**
+
+- <binding_name>: <expression> on <element> [L<row>:C<column>]
+
+**Events:**
+
+- @<event_name>="<handler>" on <element> [L<row>:C<column>]
+
+**Components:**
+
+- <component_name>
+  ...
+
+## Vue Options API
+
+**Data Properties:**
+
+- <property_name>
+  ...
+
+**Computed Properties:**
+
+- <property_name>: <getter/setter>
+  ...
+
+**Watch Properties:**
+
+- <property_name>
+  ...
+
+**Methods:**
+
+- <method_name>(<parameters>) -> <return_type>
+  ...
+
+**Lifecycle Hooks:**
+
+- <hook_name>
+  ...
 
 **说明：**
 
@@ -250,18 +277,93 @@ mcpServers:
 - 文件路径支持相对路径和绝对路径
 - 支持智能缓存机制，相同文件的重复解析会使用缓存
 - 自动检测文件类型（TypeScript、JavaScript、Vue）
+- 返回格式化的 Markdown 摘要，便于 AI 理解和处理
 - 一次性返回所有 AST 信息，包括：
   - 函数定义（函数声明、箭头函数、方法等）
+  - 顶层函数调用（如 onMounted、watch、main 等）
   - 类定义（包括继承、实现接口、方法和属性）
   - 变量声明（const、let、var）
   - 导入语句
   - 导出语句
   - 类型定义（接口、类型别名、枚举）
   - Vue 模板信息（指令、绑定、事件、组件）
+  - Vue Options API（data、computed、watch、methods、生命周期钩子）
+
+**示例输出：**
+
+```markdown
+# Code Analysis: src/components/Header.vue
+
+Language: vue
+
+## Functions (3)
+
+- anonymous(none) -> void [method_definition][L10:C2]
+- anonymous(none) -> void [method_definition][L15:C2]
+- anonymous(none) -> void [method_definition][L20:C2]
+
+## Function Calls (2)
+
+- onMounted(() => {
+  console.log('mounted')
+  })[L25:C0]
+- watch(() => {
+  console.log('watch')
+  }, () => {
+  console.log('callback')
+  })[L30:C0]
+
+## Imports (2)
+
+- default Button from ./Button.vue[L1:C0]
+- named ref, computed from vue[L2:C0]
+
+## Vue Template
+
+**Directives:**
+
+- v-if="isLoggedIn" on div[L5:C4]
+
+**Bindings:**
+
+- :class="{ active: isActive }" on button[L8:C6]
+
+**Events:**
+
+- @click="handleClick" on button[L8:C6]
+
+**Components:**
+
+- Button
+
+## Vue Options API
+
+**Data Properties:**
+
+- count
+- message
+
+**Computed Properties:**
+
+- doubledCount: getter
+
+**Watch Properties:**
+
+- count
+
+**Methods:**
+
+- increment(none) -> void
+
+**Lifecycle Hooks:**
+
+- mounted
+- beforeUnmount
+```
 
 ## 许可证
 
-MIT License
+ISC License
 
 ## 贡献
 
@@ -276,3 +378,6 @@ zhouyinkui
 - [MCP 协议规范](https://modelcontextprotocol.io/)
 - [Tree-sitter 文档](https://tree-sitter.github.io/tree-sitter/)
 - [Vue 官方文档](https://vuejs.org/)
+- [Continue IDE](https://continue.dev/)
+- [Cursor IDE](https://cursor.sh/)
+````

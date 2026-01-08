@@ -1,11 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
-
-const CONFIG_FILE = 'mcp-vue.config.json' as const
-const PACKAGE_JSON_FILE = 'package.json' as const
-const PNPM_WORKSPACE_FILE = 'pnpm-workspace.yaml' as const
-const LERNA_CONFIG_FILE = 'lerna.json' as const
-const GIT_DIR = '.git' as const
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 enum LogLevel {
   DEBUG = 0,
@@ -33,51 +27,12 @@ interface MCPConfig {
   logging?: LoggerConfig
 }
 
-function findProjectRoot(): string {
-  let currentDir = process.cwd()
-
-  while (currentDir !== dirname(currentDir)) {
-    const packageJsonPath = resolve(currentDir, PACKAGE_JSON_FILE)
-
-    if (existsSync(packageJsonPath)) {
-      try {
-        const packageJson = JSON.parse(
-          readFileSync(packageJsonPath, 'utf-8')
-        ) as { workspaces?: unknown }
-
-        const hasWorkspaces = Boolean(packageJson.workspaces)
-        const hasMonorepoConfig =
-          existsSync(resolve(currentDir, PNPM_WORKSPACE_FILE)) ||
-          existsSync(resolve(currentDir, LERNA_CONFIG_FILE))
-        const hasGit = existsSync(resolve(currentDir, GIT_DIR))
-
-        if (hasWorkspaces || hasMonorepoConfig || hasGit) {
-          return currentDir
-        }
-      } catch {
-        continue
-      }
-    }
-    currentDir = dirname(currentDir)
-  }
-
-  return process.cwd()
+function logWarn(message: string, data?: unknown): void {
+  console.warn(`[Config] ${message}`, data ?? '')
 }
 
-function loadConfig(): MCPConfig | null {
-  const projectRoot = findProjectRoot()
-  const configPath = resolve(projectRoot, CONFIG_FILE)
-
-  if (existsSync(configPath)) {
-    try {
-      const content = readFileSync(configPath, 'utf-8')
-      return JSON.parse(content) as MCPConfig
-    } catch (error) {
-      console.warn(`Failed to load config from ${configPath}:`, error)
-    }
-  }
-
-  return null
+function logInfo(message: string, data?: unknown): void {
+  console.log(`[Config] ${message}`, data ?? '')
 }
 
 function parseLogLevel(level: LogLevel | string): LogLevel {
@@ -92,35 +47,86 @@ function parseLogLevel(level: LogLevel | string): LogLevel {
   )
 }
 
-class ConfigManager {
-  #config: MCPConfig | null
-  #projectRoot: string
+function parseCommandLineArgs(): MCPConfig {
+  const args = process.argv.slice(2)
+  const config: MCPConfig = {}
 
-  constructor() {
-    this.#config = loadConfig()
-    this.#projectRoot = findProjectRoot()
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+
+    if (arg.startsWith('--cwd=')) {
+      config.cwd = arg.split('=')[1]
+    } else if (arg.startsWith('--level=')) {
+      config.logging = config.logging || {}
+      config.logging.level = arg.split('=')[1]
+    } else if (arg.startsWith('--log-file=')) {
+      config.logging = config.logging || {}
+      const logFile = arg.split('=')[1]
+      config.logging.logFile = logFile === 'null' ? null : logFile
+    } else if (arg === '--no-console') {
+      config.logging = config.logging || {}
+      config.logging.enableConsole = false
+    } else if (arg === '--no-file') {
+      config.logging = config.logging || {}
+      config.logging.enableFile = false
+    }
   }
 
-  get cwd(): string {
-    const configuredCwd = this.#config?.cwd
+  return config
+}
+
+class ConfigManager {
+  #config: MCPConfig
+  #cwd: string
+
+  constructor() {
+    this.#config = parseCommandLineArgs()
+    this.#cwd = this.#resolveCwd()
+    logInfo('Config loaded', {
+      cwd: this.#cwd,
+      logLevel: this.logLevel,
+      logFile: this.logFile,
+      enableConsole: this.enableConsole,
+      enableFile: this.enableFile
+    })
+  }
+
+  #resolveCwd(): string {
+    const configuredCwd = this.#config.cwd
+
     if (configuredCwd) {
-      const resolvedCwd = resolve(this.#projectRoot, configuredCwd)
+      const resolvedCwd = resolve(configuredCwd)
       if (existsSync(resolvedCwd)) {
         return resolvedCwd
       }
-      console.warn(
-        `Configured cwd does not exist: ${configuredCwd}, using project root`
+      logWarn(
+        `Configured cwd does not exist: ${configuredCwd}, using process.cwd()`
       )
     }
-    return this.#projectRoot
+
+    return process.cwd()
   }
 
-  get projectRoot(): string {
-    return this.#projectRoot
+  #resolveLogFile(logFile: string | null | undefined): string {
+    if (logFile === null) {
+      return ''
+    }
+
+    const logFilePath = logFile || 'logs/mcp-vue.log'
+
+    if (logFilePath.startsWith('/') || /^[A-Za-z]:/.test(logFilePath)) {
+      return logFilePath
+    }
+
+    return resolve(this.#cwd, logFilePath)
+  }
+
+  get cwd(): string {
+    return this.#cwd
   }
 
   get logging(): LoggerConfig | null {
-    return this.#config?.logging || null
+    return this.#config.logging || null
   }
 
   get logLevel(): LogLevel {
@@ -128,7 +134,7 @@ class ConfigManager {
   }
 
   get logFile(): string {
-    return this.logging?.logFile || 'logs/mcp-vue.log'
+    return this.#resolveLogFile(this.logging?.logFile)
   }
 
   get enableConsole(): boolean {
@@ -140,8 +146,8 @@ class ConfigManager {
   }
 
   reload(): void {
-    this.#config = loadConfig()
-    this.#projectRoot = findProjectRoot()
+    this.#config = parseCommandLineArgs()
+    this.#cwd = this.#resolveCwd()
   }
 }
 

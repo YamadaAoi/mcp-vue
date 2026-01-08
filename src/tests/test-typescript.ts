@@ -17,30 +17,10 @@ export async function testTypeScript() {
       }
     })) as any
 
-    const parseData = JSON.parse(parseResult.result.content[0].text)
-    console.log('✅ 解析成功，找到:', {
-      函数: parseData.functions.length,
-      类: parseData.classes.length,
-      类型: parseData.types.length,
-      导出: parseData.exports.length,
-      变量: parseData.variables.length,
-      导入: parseData.imports.length
-    })
-
-    console.log('\n--- 验证函数信息 ---')
-    console.log(
-      '函数列表:',
-      parseData.functions.map((f: any) => f.name).join(', ')
-    )
-
-    console.log('\n--- 验证类型信息 ---')
-    console.log('类型列表:', parseData.types.map((t: any) => t.name).join(', '))
-
-    console.log('\n--- 验证导出信息 ---')
-    console.log(
-      '导出列表:',
-      parseData.exports.map((e: any) => e.name).join(', ')
-    )
+    const summary = parseResult.result.content[0].text
+    console.log('✅ 解析成功')
+    console.log('\n解析结果摘要:')
+    console.log(summary)
 
     await client.shutdown()
     await client.close()

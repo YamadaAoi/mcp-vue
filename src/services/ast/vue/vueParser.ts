@@ -6,11 +6,13 @@ import type {
   VueTemplateInfo,
   DirectiveInfo,
   BindingInfo,
-  EventInfo
+  EventInfo,
+  VueOptionsAPIInfo
 } from '../types'
 import { parseTypeScript } from '../typescript/tsParser'
 import { getParserPool } from '../pool/parserPool'
 import { getLogger } from '../../../utils/logger'
+import { extractVueOptionsAPI } from '../extractors/vueOptionsExtractor'
 
 const logger = getLogger()
 
@@ -352,6 +354,7 @@ export async function parseVue(
   }
 
   let scriptResult: ParseResult | null = null
+  let vueOptionsAPIInfo: VueOptionsAPIInfo | undefined
 
   if (descriptor.script || descriptor.scriptSetup) {
     const scriptContent =
@@ -363,6 +366,21 @@ export async function parseVue(
       logger.debug(`Successfully parsed script section of ${filename}`)
     } catch (error) {
       logger.error(`Failed to parse script in ${filename}:`, error)
+    }
+  }
+
+  if (scriptResult?.ast) {
+    try {
+      vueOptionsAPIInfo = extractVueOptionsAPI(scriptResult.ast)
+      logger.debug(`Extracted Vue Options API info from ${filename}`, {
+        dataProperties: vueOptionsAPIInfo.dataProperties.length,
+        computedProperties: vueOptionsAPIInfo.computedProperties.length,
+        watchProperties: vueOptionsAPIInfo.watchProperties.length,
+        methods: vueOptionsAPIInfo.methods.length,
+        lifecycleHooks: vueOptionsAPIInfo.lifecycleHooks.length
+      })
+    } catch (error) {
+      logger.error(`Failed to extract Vue Options API from ${filename}:`, error)
     }
   }
 
@@ -424,12 +442,14 @@ export async function parseVue(
       children: []
     },
     functions: scriptResult?.functions || [],
+    functionCalls: scriptResult?.functionCalls || [],
     classes: scriptResult?.classes || [],
     variables: scriptResult?.variables || [],
     imports: scriptResult?.imports || [],
     exports: scriptResult?.exports || [],
     types: scriptResult?.types || [],
-    vueTemplate: vueTemplateInfo
+    vueTemplate: vueTemplateInfo,
+    vueOptionsAPI: vueOptionsAPIInfo
   }
 
   logger.debug(`Successfully parsed Vue file: ${filename}`, {

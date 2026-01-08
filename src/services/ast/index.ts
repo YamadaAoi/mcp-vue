@@ -1,4 +1,4 @@
-import type { ParseResult } from './types'
+import type { ParseResult, MappedParseResult } from './types'
 import type { ToolRegistration } from '../../utils/mcpServer'
 import { parseTypeScript, parseTSX } from './typescript/tsParser'
 import { parseVue } from './vue/vueParser'
@@ -7,9 +7,10 @@ import { getConfigManager } from '../../utils/config'
 import { readFileSync, statSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { CacheManager } from './cache/cacheManager'
+import { buildSummary } from './summaryBuilder'
 
 const logger = getLogger()
-const cacheManager = new CacheManager(100, 5 * 60 * 1000)
+export const cacheManager = new CacheManager(100, 5 * 60 * 1000)
 
 const SUPPORTED_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'vue'] as const
 
@@ -82,7 +83,7 @@ function handleParseError(
   throw new Error(errorMessage)
 }
 
-function mapParseResult(result: ParseResult) {
+export function mapParseResult(result: ParseResult): MappedParseResult {
   return {
     success: true,
     language: result.language,
@@ -94,6 +95,14 @@ function mapParseResult(result: ParseResult) {
       position: {
         start: fn.startPosition,
         end: fn.endPosition
+      }
+    })),
+    functionCalls: result.functionCalls.map(call => ({
+      name: call.name,
+      arguments: call.arguments,
+      position: {
+        start: call.startPosition,
+        end: call.endPosition
       }
     })),
     classes: result.classes.map(cls => ({
@@ -137,7 +146,8 @@ function mapParseResult(result: ParseResult) {
         end: t.endPosition
       }
     })),
-    vueTemplate: result.vueTemplate
+    vueTemplate: result.vueTemplate,
+    vueOptionsAPI: result.vueOptionsAPI
   }
 }
 
@@ -236,7 +246,18 @@ export function createASTTools(): ToolRegistration[] {
             cacheSize: cacheManager.size
           })
 
-          return mapParseResult(result)
+          const parsedResult = mapParseResult(result)
+
+          const summary = buildSummary(parsedResult, filepath)
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: summary
+              }
+            ]
+          }
         } catch (error) {
           handleParseError(error, 'parse code', filepath)
         }

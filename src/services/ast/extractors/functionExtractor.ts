@@ -8,6 +8,7 @@ const FUNCTION_EXPRESSION_NODE_TYPE = 'function_expression' as const
 const ARROW_FUNCTION_NODE_TYPE = 'arrow_function' as const
 const METHOD_DEFINITION_NODE_TYPE = 'method_definition' as const
 const IDENTIFIER_NODE_TYPE = 'identifier' as const
+const PROPERTY_IDENTIFIER_NODE_TYPE = 'property_identifier' as const
 const FORMAL_PARAMETERS_NODE_TYPE = 'formal_parameters' as const
 const TYPE_ANNOTATION_NODE_TYPE = 'type_annotation' as const
 const REQUIRED_PARAMETER_NODE_TYPE = 'required_parameter' as const
@@ -22,6 +23,21 @@ const FUNCTION_NODE_TYPES = [
   METHOD_DEFINITION_NODE_TYPE
 ] as const
 
+function isInlineCallback(node: ASTNode, parent?: ASTNode): boolean {
+  if (!parent) {
+    return false
+  }
+
+  if (parent.type === 'arguments') {
+    logger.debug(
+      `Function is a callback (parent is arguments) - line: ${node.startPosition?.row}`
+    )
+    return true
+  }
+
+  return false
+}
+
 function isFunctionNodeType(
   nodeType: string
 ): nodeType is (typeof FUNCTION_NODE_TYPES)[number] {
@@ -32,23 +48,38 @@ function isFunctionNodeType(
 
 export function extractFunctions(astNode: ASTNode): FunctionInfo[] {
   const functions: FunctionInfo[] = []
-  const queue: ASTNode[] = [astNode]
+  const queue: Array<{ node: ASTNode; parent?: ASTNode }> = [{ node: astNode }]
+
+  logger.debug('Starting function extraction')
 
   while (queue.length > 0) {
-    const node = queue.shift()!
+    const { node, parent } = queue.shift()!
 
     try {
       if (isFunctionNodeType(node.type)) {
-        const funcInfo = parseFunctionInfo(node)
-        if (funcInfo) {
-          functions.push(funcInfo)
+        logger.debug(
+          `Function node found - nodeType: ${node.type}, line: ${node.startPosition?.row}`
+        )
+
+        const isCallback = isInlineCallback(node, parent)
+        if (!isCallback) {
+          const funcInfo = parseFunctionInfo(node)
+          if (funcInfo) {
+            functions.push(funcInfo)
+            logger.debug(
+              `Extracted function: ${funcInfo.name} (${funcInfo.type})`
+            )
+          }
+        } else {
           logger.debug(
-            `Extracted function: ${funcInfo.name} (${funcInfo.type})`
+            `Skipped callback function at line ${node.startPosition?.row}`
           )
         }
       }
 
-      queue.push(...node.children)
+      for (const child of node.children) {
+        queue.push({ node: child, parent: node })
+      }
     } catch (error) {
       logger.error(
         `Failed to process node of type ${node.type}`,
@@ -64,7 +95,9 @@ export function extractFunctions(astNode: ASTNode): FunctionInfo[] {
 function parseFunctionInfo(node: ASTNode): FunctionInfo | null {
   try {
     const nameNode = node.children.find(
-      child => child.type === IDENTIFIER_NODE_TYPE
+      child =>
+        child.type === IDENTIFIER_NODE_TYPE ||
+        child.type === PROPERTY_IDENTIFIER_NODE_TYPE
     )
     const parametersNode = node.children.find(
       child => child.type === FORMAL_PARAMETERS_NODE_TYPE
@@ -77,6 +110,7 @@ function parseFunctionInfo(node: ASTNode): FunctionInfo | null {
     const isGenerator = node.children.some(child => child.type === '*')
 
     const name = nameNode?.text || ANONYMOUS_FUNCTION_NAME
+
     const parameters = parametersNode ? extractParameters(parametersNode) : []
     const returnType = returnTypeNode
       ? extractTypeAnnotation(returnTypeNode)

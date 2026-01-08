@@ -13,7 +13,7 @@ export class MCPServerTestClient {
   #buffer = ''
 
   constructor() {
-    this.#server = spawn('node', ['dist/index.js'], {
+    this.#server = spawn('node', ['dist/index.js', '--level=DEBUG'], {
       stdio: ['pipe', 'pipe', 'inherit']
     })
 

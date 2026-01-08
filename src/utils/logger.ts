@@ -1,10 +1,9 @@
 import { existsSync, mkdirSync, appendFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import {
   getConfigManager,
   type LoggerConfig,
   LogLevel,
-  LOG_LEVEL_MAPPING,
   parseLogLevel
 } from './config'
 
@@ -32,7 +31,6 @@ export class Logger {
   #currentDate: string
   #enableConsole: boolean
   #enableFile: boolean
-  #projectRoot: string
 
   constructor(options?: LoggerConfig) {
     const config = getConfigManager()
@@ -43,25 +41,12 @@ export class Logger {
     this.#logFileBase = options?.logFile ?? config.logFile
     this.#enableConsole = options?.enableConsole ?? config.enableConsole
     this.#enableFile = options?.enableFile ?? config.enableFile
-    this.#projectRoot = config.projectRoot
     this.#currentDate = this.#getCurrentDate()
     this.#logFile = this.#generateLogFilePath()
 
     if (this.#enableFile && this.#logFile) {
       this.#ensureLogDirectory()
     }
-  }
-
-  parseLogLevel(level: LogLevel | string): LogLevel {
-    if (typeof level === 'number') {
-      return level
-    }
-
-    const upperLevel = level.toUpperCase()
-    return (
-      LOG_LEVEL_MAPPING[upperLevel as keyof typeof LOG_LEVEL_MAPPING] ??
-      LogLevel.INFO
-    )
   }
 
   #ensureLogDirectory(): void {
@@ -86,10 +71,7 @@ export class Logger {
       new RegExp(`${LOG_FILE_EXTENSION}$`),
       ''
     )
-    return resolve(
-      this.#projectRoot,
-      `${baseName}${DATE_SEPARATOR}${this.#currentDate}${LOG_FILE_EXTENSION}`
-    )
+    return `${baseName}${DATE_SEPARATOR}${this.#currentDate}${LOG_FILE_EXTENSION}`
   }
 
   #checkDateChange(): void {
@@ -118,6 +100,10 @@ export class Logger {
       return
     }
 
+    if (this.#enableFile) {
+      this.#checkDateChange()
+    }
+
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: LogLevel[level],
@@ -133,7 +119,6 @@ export class Logger {
     }
 
     if (this.#enableFile && this.#logFile) {
-      this.#checkDateChange()
       try {
         appendFileSync(this.#logFile, formatted + '\n')
       } catch (error) {
@@ -163,7 +148,7 @@ export class Logger {
   }
 
   setLevel(level: LogLevel | string): void {
-    this.#level = this.parseLogLevel(level)
+    this.#level = parseLogLevel(level)
   }
 
   getLevel(): LogLevel {

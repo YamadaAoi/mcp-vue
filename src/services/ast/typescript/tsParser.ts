@@ -2,6 +2,7 @@ import { type Node, type Tree } from 'web-tree-sitter'
 import type { ParseResult, ASTNode } from '../types'
 import {
   extractFunctions,
+  extractFunctionCalls,
   extractClasses,
   extractVariables,
   extractImports,
@@ -146,6 +147,7 @@ async function parseCode(code: string, filename: string): Promise<ParseResult> {
     const astNode = convertTreeSitterNode(rootNode)
 
     const functions = extractFunctions(astNode)
+    const functionCalls = extractFunctionCalls(astNode)
     const classes = extractClasses(astNode)
     const variables = extractVariables(astNode)
     const imports = extractImports(astNode)
@@ -155,6 +157,7 @@ async function parseCode(code: string, filename: string): Promise<ParseResult> {
     const duration = performance.now() - startTime
     logger.debug(`Parsed ${filename} in ${duration.toFixed(2)}ms`, {
       functions: functions.length,
+      functionCalls: functionCalls.length,
       classes: classes.length,
       variables: variables.length,
       imports: imports.length,
@@ -166,6 +169,7 @@ async function parseCode(code: string, filename: string): Promise<ParseResult> {
       language: ext ? getLanguageFromExtension(ext) : languageType,
       ast: astNode,
       functions,
+      functionCalls,
       classes,
       variables,
       imports,

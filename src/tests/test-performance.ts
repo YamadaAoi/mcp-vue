@@ -19,7 +19,6 @@ export async function testPerformance() {
     })) as any
     const singleEndTime = Date.now()
 
-    JSON.parse(singleResult.result.content[0].text)
     console.log(`✅ 单次解析耗时: ${singleEndTime - singleStartTime}ms`)
 
     console.log('\n--- 测试多次解析性能 ---')
@@ -33,7 +32,6 @@ export async function testPerformance() {
           filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
-      JSON.parse(result.result.content[0].text)
     }
 
     const multiEndTime = Date.now()
@@ -53,11 +51,7 @@ export async function testPerformance() {
     })) as any
     const largeEndTime = Date.now()
 
-    const largeData = JSON.parse(largeResult.result.content[0].text)
     console.log(`✅ 大型文件解析耗时: ${largeEndTime - largeStartTime}ms`)
-    console.log(
-      `  解析结果: ${largeData.functions.length} 函数, ${largeData.classes.length} 类`
-    )
 
     console.log('\n--- 测试并发解析性能 ---')
     const concurrentCount = 5
@@ -74,10 +68,6 @@ export async function testPerformance() {
 
     const concurrentResults = await Promise.all(concurrentRequests)
     const concurrentEndTime = Date.now()
-
-    concurrentResults.forEach((result: any) => {
-      JSON.parse(result.result.content[0].text)
-    })
 
     console.log(
       `✅ ${concurrentCount} 个并发请求总耗时: ${concurrentEndTime - concurrentStartTime}ms`
@@ -96,7 +86,6 @@ export async function testPerformance() {
     })) as any
     const toolEndTime = Date.now()
 
-    JSON.parse(result.result.content[0].text)
     const toolTime = toolEndTime - toolStartTime
     console.log('✅ parse_code 工具性能:')
     console.log(`  parse_code: ${toolTime}ms`)
@@ -112,7 +101,6 @@ export async function testPerformance() {
           filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
-      JSON.parse(result.result.content[0].text)
     }
     const cacheEndTime = Date.now()
 
@@ -134,7 +122,6 @@ export async function testPerformance() {
           filepath: resolve('src/tests/fixtures/test-simple.ts')
         }
       })) as any
-      JSON.parse(result.result.content[0].text)
     }
 
     const memoryAfter = process.memoryUsage()
@@ -167,7 +154,6 @@ export async function testPerformance() {
       })) as any
       const endTime = Date.now()
 
-      JSON.parse(result.result.content[0].text)
       responseTimes.push(endTime - startTime)
     }
 
