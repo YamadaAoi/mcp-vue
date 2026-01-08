@@ -1,4 +1,6 @@
 .vscode
+.changeset
+logs
 src
 node_modules
 .gitignore
