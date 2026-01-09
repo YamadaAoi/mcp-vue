@@ -10,6 +10,8 @@ const FUNCTION_EXPRESSION_NODE_TYPE = 'function_expression' as const
 const ARROW_FUNCTION_NODE_TYPE = 'arrow_function' as const
 const METHOD_DEFINITION_NODE_TYPE = 'method_definition' as const
 const EXPORT_STATEMENT_NODE_TYPE = 'export_statement' as const
+const CALL_EXPRESSION_NODE_TYPE = 'call_expression' as const
+const ARGUMENTS_NODE_TYPE = 'arguments' as const
 
 const LIFECYCLE_HOOKS = new Set([
   'beforeCreate',
@@ -56,14 +58,32 @@ export function extractVueOptionsAPI(astNode: ASTNode): VueOptionsAPIInfo {
       if (node.type === EXPORT_STATEMENT_NODE_TYPE) {
         foundExportStatement = true
         logger.debug('Found export_statement node')
-        const objectNode = node.children.find(
-          child => child.type === OBJECT_NODE_TYPE
+
+        const callExpressionNode = node.children.find(
+          child => child.type === CALL_EXPRESSION_NODE_TYPE
         )
-        if (objectNode) {
-          logger.debug('Found object node')
-          logger.debug('Processing object node directly')
-          processObjectExpression(objectNode, result)
-          break
+
+        if (callExpressionNode) {
+          logger.debug('Found call_expression node')
+
+          const argumentsNode = callExpressionNode.children.find(
+            child => child.type === ARGUMENTS_NODE_TYPE
+          )
+
+          if (argumentsNode) {
+            logger.debug('Found arguments node')
+
+            const objectNode = argumentsNode.children.find(
+              child => child.type === OBJECT_NODE_TYPE
+            )
+
+            if (objectNode) {
+              logger.debug('Found object node')
+              logger.debug('Processing object node directly')
+              processObjectExpression(objectNode, result)
+              break
+            }
+          }
         }
       }
 
@@ -101,17 +121,23 @@ function processObjectExpression(
 
       const key = keyNode.text.replace(/['"]/g, '')
 
+      logger.debug(`Processing property key: ${key}`)
+
       switch (key) {
         case 'data':
+          logger.debug('Extracting data properties')
           extractDataProperties(property, result)
           break
         case 'computed':
+          logger.debug('Extracting computed properties')
           extractPropertiesFromObject(property, result.computedProperties)
           break
         case 'watch':
+          logger.debug('Extracting watch properties')
           extractPropertiesFromObject(property, result.watchProperties)
           break
         case 'methods':
+          logger.debug('Extracting methods')
           extractPropertiesFromObject(property, result.methods)
           break
         case 'props':
@@ -125,6 +151,7 @@ function processObjectExpression(
           break
         default:
           if (LIFECYCLE_HOOKS.has(key)) {
+            logger.debug(`Found lifecycle hook: ${key}`)
             result.lifecycleHooks.push(key)
           }
       }

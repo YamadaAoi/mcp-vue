@@ -38,6 +38,21 @@ function isInlineCallback(node: ASTNode, parent?: ASTNode): boolean {
   return false
 }
 
+function isClassMethod(node: ASTNode, parent?: ASTNode): boolean {
+  if (!parent) {
+    return false
+  }
+
+  if (parent.type === 'class_body') {
+    logger.debug(
+      `Function is a class method (parent is class_body) - line: ${node.startPosition?.row}`
+    )
+    return true
+  }
+
+  return false
+}
+
 function isFunctionNodeType(
   nodeType: string
 ): nodeType is (typeof FUNCTION_NODE_TYPES)[number] {
@@ -62,7 +77,8 @@ export function extractFunctions(astNode: ASTNode): FunctionInfo[] {
         )
 
         const isCallback = isInlineCallback(node, parent)
-        if (!isCallback) {
+        const isMethod = isClassMethod(node, parent)
+        if (!isCallback && !isMethod) {
           const funcInfo = parseFunctionInfo(node)
           if (funcInfo) {
             functions.push(funcInfo)
@@ -71,8 +87,9 @@ export function extractFunctions(astNode: ASTNode): FunctionInfo[] {
             )
           }
         } else {
+          const reason = isCallback ? 'callback' : 'class method'
           logger.debug(
-            `Skipped callback function at line ${node.startPosition?.row}`
+            `Skipped ${reason} function at line ${node.startPosition?.row}`
           )
         }
       }
@@ -131,6 +148,7 @@ function parseFunctionInfo(node: ASTNode): FunctionInfo | null {
       'Failed to parse function info',
       error instanceof Error ? error : String(error)
     )
+    logger.error('Error details:', JSON.stringify(error, null, 2))
     return null
   }
 }

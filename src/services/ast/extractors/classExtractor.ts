@@ -9,9 +9,13 @@ import { getLogger } from '../../../utils/logger'
 
 const logger = getLogger()
 
-const CLASS_NODE_TYPES = ['class_declaration', 'class_expression'] as const
+const CLASS_NODE_TYPES = [
+  'class_declaration',
+  'class_expression',
+  'abstract_class_declaration'
+] as const
 const METHOD_NODE_TYPE = 'method_definition' as const
-const PROPERTY_NODE_TYPE = 'property_definition' as const
+const PROPERTY_NODE_TYPE = 'public_field_definition' as const
 const ACCESSOR_NODE_TYPE = 'accessor_declaration' as const
 const IDENTIFIER_NODE_TYPE = 'identifier' as const
 const PROPERTY_IDENTIFIER_NODE_TYPE = 'property_identifier' as const
@@ -86,7 +90,9 @@ export function extractClasses(astNode: ASTNode): ClassInfo[] {
 
 function parseClassInfo(node: ASTNode): ClassInfo | null {
   try {
-    const nameNode = findChildByType(node, IDENTIFIER_NODE_TYPE)
+    const nameNode =
+      findChildByType(node, TYPE_IDENTIFIER_NODE_TYPE) ||
+      findChildByType(node, IDENTIFIER_NODE_TYPE)
     if (!nameNode) {
       logger.warn('Class declaration missing name identifier')
       return null

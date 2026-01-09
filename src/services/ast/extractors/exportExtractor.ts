@@ -18,7 +18,8 @@ const EXPORT_TYPE_MAPPING = {
   [CLASS_DECLARATION_NODE_TYPE]: 'class' as const,
   [TYPE_ALIAS_DECLARATION_NODE_TYPE]: 'type' as const,
   [INTERFACE_DECLARATION_NODE_TYPE]: 'type' as const,
-  [ENUM_DECLARATION_NODE_TYPE]: 'type' as const
+  [ENUM_DECLARATION_NODE_TYPE]: 'type' as const,
+  lexical_declaration: 'variable' as const
 } as const
 
 function isExportNodeType(
@@ -89,6 +90,24 @@ function parseExportInfo(node: ASTNode): ExportInfo | null {
               type: exportType,
               isDefault,
               startPosition: node.startPosition
+            }
+          }
+        } else if (child.type === 'lexical_declaration') {
+          const variableDeclarator = child.children.find(
+            c => c.type === 'variable_declarator'
+          )
+          if (variableDeclarator) {
+            const nameNode = findChildByType(
+              variableDeclarator,
+              IDENTIFIER_NODE_TYPE
+            )
+            if (nameNode) {
+              return {
+                name: nameNode.text,
+                type: exportType,
+                isDefault,
+                startPosition: node.startPosition
+              }
             }
           }
         } else {

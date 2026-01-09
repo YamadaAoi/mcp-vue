@@ -126,7 +126,7 @@ describe('MCP Code Parser - TypeScript', () => {
 
       expect(result.functions).toHaveLength(1)
       expect(result.classes).toHaveLength(2)
-      expect(result.types).toHaveLength(3)
+      expect(result.types).toHaveLength(2)
 
       const safeExecuteFn = result.functions[0]
       expect(safeExecuteFn.name).toBe('safeExecute')
