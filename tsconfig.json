@@ -20,6 +20,6 @@
     "verbatimModuleSyntax": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "vite.config.ts"],
+  "include": ["src/**/*", "vite.config.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "dist", "src/tests/**"]
 }

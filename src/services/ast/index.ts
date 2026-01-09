@@ -146,7 +146,6 @@ export function mapParseResult(result: ParseResult): MappedParseResult {
         end: t.endPosition
       }
     })),
-    vueTemplate: result.vueTemplate,
     vueOptionsAPI: result.vueOptionsAPI
   }
 }
@@ -175,8 +174,7 @@ export async function parseFile(filepath: string): Promise<ParseResult> {
       types: cached.types.length,
       imports: cached.imports.length,
       exports: cached.exports.length,
-      variables: cached.variables.length,
-      hasVueTemplate: !!cached.vueTemplate
+      variables: cached.variables.length
     })
     return cached
   }
@@ -199,8 +197,7 @@ export async function parseFile(filepath: string): Promise<ParseResult> {
       types: result.types.length,
       imports: result.imports.length,
       exports: result.exports.length,
-      variables: result.variables.length,
-      hasVueTemplate: !!result.vueTemplate
+      variables: result.variables.length
     })
 
     return result
@@ -242,7 +239,6 @@ export function createASTTools(): ToolRegistration[] {
             imports: result.imports.length,
             exports: result.exports.length,
             variables: result.variables.length,
-            hasVueTemplate: !!result.vueTemplate,
             cacheSize: cacheManager.size
           })
 

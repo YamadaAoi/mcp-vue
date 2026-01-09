@@ -16,7 +16,6 @@ export interface ParseResult {
   imports: ImportInfo[]
   exports: ExportInfo[]
   types: TypeInfo[]
-  vueTemplate?: VueTemplateInfo
   vueOptionsAPI?: VueOptionsAPIInfo
 }
 
@@ -131,42 +130,12 @@ export interface TypePropertyInfo {
   isReadonly: boolean
 }
 
-export interface VueTemplateInfo {
-  directives: DirectiveInfo[]
-  bindings: BindingInfo[]
-  events: EventInfo[]
-  components: string[]
-}
-
 export interface VueOptionsAPIInfo {
   dataProperties: string[]
   computedProperties: string[]
   watchProperties: string[]
   methods: string[]
   lifecycleHooks: string[]
-}
-
-export interface DirectiveInfo {
-  name: string
-  value?: string
-  modifiers: string[]
-  element: string
-  startPosition: { row: number; column: number }
-}
-
-export interface BindingInfo {
-  name: string
-  expression: string
-  element: string
-  startPosition: { row: number; column: number }
-}
-
-export interface EventInfo {
-  name: string
-  handler: string
-  modifiers: string[]
-  element: string
-  startPosition: { row: number; column: number }
 }
 
 export interface MappedParseResult {
@@ -249,29 +218,6 @@ export interface MappedParseResult {
       end: { row: number; column: number }
     }
   }>
-  vueTemplate?: {
-    directives: Array<{
-      name: string
-      value?: string
-      modifiers: string[]
-      element: string
-      startPosition: { row: number; column: number }
-    }>
-    bindings: Array<{
-      name: string
-      expression: string
-      element: string
-      startPosition: { row: number; column: number }
-    }>
-    events: Array<{
-      name: string
-      handler: string
-      modifiers: string[]
-      element: string
-      startPosition: { row: number; column: number }
-    }>
-    components: string[]
-  }
   vueOptionsAPI?: {
     dataProperties: string[]
     computedProperties: string[]

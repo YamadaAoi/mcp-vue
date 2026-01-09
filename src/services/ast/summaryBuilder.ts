@@ -223,65 +223,6 @@ function buildTypesSection(types: MappedParseResult['types']): string[] {
   return lines
 }
 
-function buildVueTemplateSection(
-  vueTemplate: NonNullable<MappedParseResult['vueTemplate']>
-): string[] {
-  const lines: string[] = []
-
-  const hasDirectives = vueTemplate.directives.length > 0
-  const hasBindings = vueTemplate.bindings.length > 0
-  const hasEvents = vueTemplate.events.length > 0
-  const hasComponents = vueTemplate.components.length > 0
-
-  if (!hasDirectives && !hasBindings && !hasEvents && !hasComponents) {
-    return []
-  }
-
-  lines.push('## Vue Template')
-  lines.push('')
-
-  if (hasDirectives) {
-    lines.push('Directives:')
-    for (const dir of vueTemplate.directives) {
-      const modifiers =
-        dir.modifiers.length > 0 ? `.${dir.modifiers.join('.')}` : ''
-      const value = dir.value ? `="${dir.value}"` : ''
-      lines.push(`- v-${dir.name}${modifiers}${value} on <${dir.element}>`)
-    }
-    lines.push('')
-  }
-
-  if (hasBindings) {
-    lines.push('Bindings:')
-    for (const bind of vueTemplate.bindings) {
-      lines.push(`- :${bind.name} = ${bind.expression} on <${bind.element}>`)
-    }
-    lines.push('')
-  }
-
-  if (hasEvents) {
-    lines.push('Events:')
-    for (const evt of vueTemplate.events) {
-      const modifiers =
-        evt.modifiers.length > 0 ? `.${evt.modifiers.join('.')}` : ''
-      lines.push(
-        `- @${evt.name}${modifiers} = ${evt.handler} on <${evt.element}>`
-      )
-    }
-    lines.push('')
-  }
-
-  if (hasComponents) {
-    lines.push('Components:')
-    for (const comp of vueTemplate.components) {
-      lines.push(`- <${comp}>`)
-    }
-    lines.push('')
-  }
-
-  return lines
-}
-
 function buildVueOptionsAPISection(
   vueOptionsAPI: NonNullable<MappedParseResult['vueOptionsAPI']>
 ): string[] {
@@ -361,10 +302,6 @@ export function buildSummary(
   lines.push(...buildImportsSection(result.imports))
   lines.push(...buildExportsSection(result.exports))
   lines.push(...buildTypesSection(result.types))
-
-  if (result.vueTemplate) {
-    lines.push(...buildVueTemplateSection(result.vueTemplate))
-  }
 
   if (result.vueOptionsAPI) {
     lines.push(...buildVueOptionsAPISection(result.vueOptionsAPI))
