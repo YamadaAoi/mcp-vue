@@ -289,6 +289,36 @@ Language: <language>
   - Vue 模板信息（指令、绑定、事件、组件）
   - Vue Options API（data、computed、watch、methods、生命周期钩子）
 
+## 技术说明
+
+### 函数返回值类型提取
+
+本服务器的函数返回值类型提取基于 **AST（抽象语法树）解析**，具有以下特点：
+
+**提取规则：**
+
+- ✅ **显式标注的返回值类型**：能够准确提取函数声明中显式标注的返回值类型
+
+  ```typescript
+  function returnsString(): string {
+    return 'hello'
+  }
+  // 提取结果：returnsString(none) -> string
+  ```
+
+- ⚠️ **无显式标注的返回值类型**：当函数没有显式标注返回值类型时，默认显示为 "void"
+  ```typescript
+  function returnsString() {
+    return 'hello'
+  }
+  // 提取结果：returnsString(none) -> void
+  ```
+
+**技术限制：**
+
+- AST 解析器专注于**语法结构**分析，不进行**语义分析**和**类型推断**
+- Tree-sitter 解析器本身不提供类型检查功能
+
 **示例输出：**
 
 ```markdown

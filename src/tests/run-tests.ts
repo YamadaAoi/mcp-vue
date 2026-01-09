@@ -16,6 +16,9 @@ import { testCallbacks } from './test-callbacks'
 import { testCallbacksExtended } from './test-callbacks-extended'
 import { testTopLevelCalls } from './test-top-level-calls'
 import { testVueSimple } from './test-vue-simple'
+import { testReturnTypes } from './test-return-types'
+import { testReturnTypesNoAnnotation } from './test-return-types-no-annotation'
+import { testNoReturnType } from './test-no-return-type'
 
 async function runAllTests() {
   console.log('╔════════════════════════════════════════╗')
@@ -40,7 +43,10 @@ async function runAllTests() {
     { name: '回调函数检测', fn: testCallbacks },
     { name: '扩展回调函数检测', fn: testCallbacksExtended },
     { name: '顶层函数调用提取', fn: testTopLevelCalls },
-    { name: 'Vue 简单模板（无 Options API）', fn: testVueSimple }
+    { name: 'Vue 简单模板（无 Options API）', fn: testVueSimple },
+    { name: '函数返回值类型提取', fn: testReturnTypes },
+    { name: '无返回值类型标注的函数', fn: testReturnTypesNoAnnotation },
+    { name: '简单无返回值类型测试', fn: testNoReturnType }
   ]
 
   const failedTests: string[] = []
@@ -87,7 +93,10 @@ async function runSpecificTest(testName: string) {
     callbacks: testCallbacks,
     callbacksextended: testCallbacksExtended,
     toplevelcalls: testTopLevelCalls,
-    vuesimple: testVueSimple
+    vuesimple: testVueSimple,
+    returntypes: testReturnTypes,
+    returntypesnoannotation: testReturnTypesNoAnnotation,
+    noreturntype: testNoReturnType
   }
 
   const test = tests[testName]
