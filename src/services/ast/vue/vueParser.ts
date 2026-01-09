@@ -362,7 +362,11 @@ export async function parseVue(
 
     try {
       logger.debug(`Parsing script section of ${filename}`)
-      scriptResult = await parseTypeScript(scriptContent, filename + '.ts')
+      scriptResult = await parseTypeScript(
+        scriptContent,
+        filename,
+        'typescript'
+      )
       logger.debug(`Successfully parsed script section of ${filename}`)
     } catch (error) {
       logger.error(`Failed to parse script in ${filename}:`, error)

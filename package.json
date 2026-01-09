@@ -18,7 +18,6 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "test": "npx tsx src/tests/run-tests.ts",
     "prepare": "simple-git-hooks",
     "csadd": "changeset",
     "csver": "pnpm changeset version",

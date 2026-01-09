@@ -118,11 +118,15 @@ function convertTreeSitterNode(node: Node): ASTNode {
   return astNode
 }
 
-async function parseCode(code: string, filename: string): Promise<ParseResult> {
+async function parseCode(
+  code: string,
+  filename: string,
+  languageTypeOverride?: 'typescript' | 'tsx' | 'javascript' | 'jsx'
+): Promise<ParseResult> {
   validateInput(code, filename)
 
   const ext = filename.split('.').pop()?.toLowerCase()
-  const languageType = getLanguageType(filename)
+  const languageType = languageTypeOverride || getLanguageType(filename)
   const pool = getParserPool()
 
   logger.debug(`Parsing ${languageType} file: ${filename}`)
@@ -199,14 +203,16 @@ async function parseCode(code: string, filename: string): Promise<ParseResult> {
 
 export async function parseTypeScript(
   code: string,
-  filename: string
+  filename: string,
+  languageType?: 'typescript' | 'javascript'
 ): Promise<ParseResult> {
-  return parseCode(code, filename)
+  return parseCode(code, filename, languageType)
 }
 
 export async function parseTSX(
   code: string,
-  filename: string
+  filename: string,
+  languageType?: 'tsx' | 'jsx'
 ): Promise<ParseResult> {
-  return parseCode(code, filename)
+  return parseCode(code, filename, languageType)
 }
