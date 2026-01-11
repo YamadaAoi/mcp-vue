@@ -130,7 +130,7 @@ class ConfigManager {
   }
 
   get logLevel(): LogLevel {
-    return parseLogLevel(this.logging?.level ?? 'INFO')
+    return parseLogLevel(this.logging?.level ?? 'DEBUG')
   }
 
   get logFile(): string {

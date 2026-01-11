@@ -1,4 +1,7 @@
 import type { ASTNode, VariableInfo } from '../types'
+import { getLogger } from '../../../../utils/logger'
+
+const logger = getLogger()
 
 const VARIABLE_DECLARATION_TYPES = [
   'lexical_declaration',
@@ -121,7 +124,7 @@ export function extractVariables(astNode: ASTNode): VariableInfo[] {
                 })
               }
             } catch (error) {
-              console.error(
+              logger.error(
                 `Error processing variable declarator: ${String(error)}`
               )
             }
@@ -133,7 +136,7 @@ export function extractVariables(astNode: ASTNode): VariableInfo[] {
         stack.push(child)
       }
     } catch (error) {
-      console.error(
+      logger.error(
         `Error processing node of type ${node.type}: ${String(error)}`
       )
     }

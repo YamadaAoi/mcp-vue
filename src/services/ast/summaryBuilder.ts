@@ -223,67 +223,6 @@ function buildTypesSection(types: MappedParseResult['types']): string[] {
   return lines
 }
 
-function buildVueOptionsAPISection(
-  vueOptionsAPI: NonNullable<MappedParseResult['vueOptionsAPI']>
-): string[] {
-  const lines: string[] = []
-
-  const hasData = vueOptionsAPI.dataProperties.length > 0
-  const hasComputed = vueOptionsAPI.computedProperties.length > 0
-  const hasWatch = vueOptionsAPI.watchProperties.length > 0
-  const hasMethods = vueOptionsAPI.methods.length > 0
-  const hasLifecycle = vueOptionsAPI.lifecycleHooks.length > 0
-
-  if (!hasData && !hasComputed && !hasWatch && !hasMethods && !hasLifecycle) {
-    return []
-  }
-
-  lines.push('## Vue Options API')
-  lines.push('')
-
-  if (hasData) {
-    lines.push('Data Properties:')
-    for (const prop of vueOptionsAPI.dataProperties) {
-      lines.push(`- ${prop}`)
-    }
-    lines.push('')
-  }
-
-  if (hasComputed) {
-    lines.push('Computed Properties:')
-    for (const prop of vueOptionsAPI.computedProperties) {
-      lines.push(`- ${prop}`)
-    }
-    lines.push('')
-  }
-
-  if (hasWatch) {
-    lines.push('Watch Properties:')
-    for (const prop of vueOptionsAPI.watchProperties) {
-      lines.push(`- ${prop}`)
-    }
-    lines.push('')
-  }
-
-  if (hasMethods) {
-    lines.push('Methods:')
-    for (const method of vueOptionsAPI.methods) {
-      lines.push(`- ${method}`)
-    }
-    lines.push('')
-  }
-
-  if (hasLifecycle) {
-    lines.push('Lifecycle Hooks:')
-    for (const hook of vueOptionsAPI.lifecycleHooks) {
-      lines.push(`- ${hook}`)
-    }
-    lines.push('')
-  }
-
-  return lines
-}
-
 export function buildSummary(
   result: MappedParseResult,
   filepath: string
@@ -302,10 +241,6 @@ export function buildSummary(
   lines.push(...buildImportsSection(result.imports))
   lines.push(...buildExportsSection(result.exports))
   lines.push(...buildTypesSection(result.types))
-
-  if (result.vueOptionsAPI) {
-    lines.push(...buildVueOptionsAPISection(result.vueOptionsAPI))
-  }
 
   const summary = lines.join('\n')
 

@@ -5,7 +5,7 @@ import type {
   PropertyInfo,
   AccessorInfo
 } from '../types'
-import { getLogger } from '../../../utils/logger'
+import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
 

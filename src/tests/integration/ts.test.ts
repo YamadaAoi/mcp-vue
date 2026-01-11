@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { parseTypeScript } from '../../services/ast/typescript/tsParser'
-import { parseVue } from '../../services/ast/vue/vueParser'
 import {
   simpleFunction,
   asyncFunction,
@@ -10,10 +9,8 @@ import {
   enumDefinition,
   importExport,
   variableDeclarations,
-  vueComponent,
-  vueOptionsAPI,
   complexTypeScript
-} from '../fixtures/code-samples'
+} from '../fixtures/ts'
 
 describe('MCP Code Parser - TypeScript', () => {
   describe('Function Extraction', () => {
@@ -132,78 +129,5 @@ describe('MCP Code Parser - TypeScript', () => {
       expect(safeExecuteFn.name).toBe('safeExecute')
       expect(safeExecuteFn.isAsync).toBe(true)
     })
-  })
-})
-
-describe('MCP Code Parser - Vue', () => {
-  describe('Vue Composition API', () => {
-    it('should parse Vue SFC with script setup', async () => {
-      const result = await parseVue(vueComponent, 'test.vue')
-
-      expect(result.language).toBe('vue')
-      expect(result.vueOptionsAPI).toBeDefined()
-
-      const optionsAPI = result.vueOptionsAPI!
-      expect(optionsAPI.methods.length).toBeGreaterThanOrEqual(0)
-      expect(optionsAPI.lifecycleHooks.length).toBeGreaterThanOrEqual(0)
-    })
-  })
-
-  describe('Vue Options API', () => {
-    it('should parse Vue SFC with Options API', async () => {
-      const result = await parseVue(vueOptionsAPI, 'test.vue')
-
-      expect(result.language).toBe('vue')
-      expect(result.vueOptionsAPI).toBeDefined()
-
-      const optionsAPI = result.vueOptionsAPI!
-      expect(optionsAPI.dataProperties.length).toBeGreaterThanOrEqual(0)
-      expect(optionsAPI.computedProperties.length).toBeGreaterThanOrEqual(0)
-      expect(optionsAPI.watchProperties.length).toBeGreaterThanOrEqual(0)
-      expect(optionsAPI.methods.length).toBeGreaterThanOrEqual(0)
-      expect(optionsAPI.lifecycleHooks.length).toBeGreaterThanOrEqual(0)
-    })
-
-    it('should extract Options API methods', async () => {
-      const result = await parseVue(vueOptionsAPI, 'test.vue')
-
-      const optionsAPI = result.vueOptionsAPI!
-      expect(optionsAPI.methods).toContain('increment')
-      expect(optionsAPI.methods).toContain('decrement')
-    })
-
-    it('should extract Options API lifecycle hooks', async () => {
-      const result = await parseVue(vueOptionsAPI, 'test.vue')
-
-      const optionsAPI = result.vueOptionsAPI!
-      expect(optionsAPI.lifecycleHooks).toContain('mounted')
-      expect(optionsAPI.lifecycleHooks).toContain('beforeUnmount')
-    })
-  })
-})
-
-describe('MCP Code Parser - Integration', () => {
-  it('should handle multiple consecutive parses', async () => {
-    const results = await Promise.all([
-      parseTypeScript(simpleFunction, 'test1.ts'),
-      parseTypeScript(asyncFunction, 'test2.ts'),
-      parseTypeScript(classDefinition, 'test3.ts')
-    ])
-
-    expect(results).toHaveLength(3)
-    expect(results[0].functions).toHaveLength(1)
-    expect(results[1].functions).toHaveLength(1)
-    expect(results[2].classes).toHaveLength(1)
-  })
-
-  it('should handle mixed file types', async () => {
-    const results = await Promise.all([
-      parseTypeScript(simpleFunction, 'test.ts'),
-      parseVue(vueComponent, 'test.vue')
-    ])
-
-    expect(results[0].language).toBe('typescript')
-    expect(results[1].language).toBe('vue')
-    expect(results[1].vueOptionsAPI).toBeDefined()
   })
 })

@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         external: [
           '@vue/compiler-sfc',
+          '@vue/compiler-sfc-v2',
           'web-tree-sitter',
           'tree-sitter-typescript',
           /^node:.*/

@@ -1,5 +1,5 @@
 import type { ASTNode, TypeInfo, TypePropertyInfo, MethodInfo } from '../types'
-import { getLogger } from '../../../utils/logger'
+import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
 

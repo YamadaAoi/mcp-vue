@@ -54,6 +54,7 @@
     "web-tree-sitter": "^0.25.0"
   },
   "devDependencies": {
+    "@babel/types": "^7.28.5",
     "@changesets/cli": "^2.29.8",
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.51.0",

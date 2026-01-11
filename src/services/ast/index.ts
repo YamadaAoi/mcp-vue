@@ -1,7 +1,6 @@
 import type { ParseResult, MappedParseResult } from './types'
 import type { ToolRegistration } from '../../utils/mcpServer'
 import { parseTypeScript, parseTSX } from './typescript/tsParser'
-import { parseVue } from './vue/vueParser'
 import { getLogger } from '../../utils/logger'
 import { getConfigManager } from '../../utils/config'
 import { readFileSync, statSync, existsSync } from 'node:fs'
@@ -12,7 +11,7 @@ import { buildSummary } from './summaryBuilder'
 const logger = getLogger()
 export const cacheManager = new CacheManager(100, 5 * 60 * 1000)
 
-const SUPPORTED_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'vue'] as const
+const SUPPORTED_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx'] as const
 
 type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number]
 
@@ -23,8 +22,7 @@ const PARSER_MAP: Record<
   ts: parseTypeScript,
   tsx: parseTSX,
   js: parseTypeScript,
-  jsx: parseTSX,
-  vue: parseVue
+  jsx: parseTSX
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -145,8 +143,7 @@ export function mapParseResult(result: ParseResult): MappedParseResult {
         start: t.startPosition,
         end: t.endPosition
       }
-    })),
-    vueOptionsAPI: result.vueOptionsAPI
+    }))
   }
 }
 

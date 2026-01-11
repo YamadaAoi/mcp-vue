@@ -1,5 +1,5 @@
 import { type Node, type Tree } from 'web-tree-sitter'
-import type { ParseResult, ASTNode } from '../types'
+import type { TsParseResult, ASTNode } from './types'
 import {
   extractFunctions,
   extractFunctionCalls,
@@ -8,7 +8,7 @@ import {
   extractImports,
   extractExports,
   extractTypes
-} from '../extractors'
+} from './extractors'
 import { getParserPool } from '../pool/parserPool'
 import { getLogger } from '../../../utils/logger'
 
@@ -122,7 +122,7 @@ async function parseCode(
   code: string,
   filename: string,
   languageTypeOverride?: 'typescript' | 'tsx' | 'javascript' | 'jsx'
-): Promise<ParseResult> {
+): Promise<TsParseResult> {
   validateInput(code, filename)
 
   const ext = filename.split('.').pop()?.toLowerCase()
@@ -205,7 +205,7 @@ export async function parseTypeScript(
   code: string,
   filename: string,
   languageType?: 'typescript' | 'javascript'
-): Promise<ParseResult> {
+): Promise<TsParseResult> {
   return parseCode(code, filename, languageType)
 }
 
@@ -213,6 +213,6 @@ export async function parseTSX(
   code: string,
   filename: string,
   languageType?: 'tsx' | 'jsx'
-): Promise<ParseResult> {
+): Promise<TsParseResult> {
   return parseCode(code, filename, languageType)
 }
