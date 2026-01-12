@@ -41,33 +41,19 @@ function validateInput(code: string, filename: string): void {
   }
 }
 
-function getLanguageType(
-  filename: string
-): 'typescript' | 'tsx' | 'javascript' | 'jsx' {
+function getLanguageType(filename: string) {
   const ext = filename.split('.').pop()?.toLowerCase()
 
+  return getLanguageFromExtension(ext)
+}
+
+function getLanguageFromExtension(ext?: string) {
   if (!ext || !isSupportedExtension(ext)) {
     logger.warn(`Unsupported file extension: ${ext}, defaulting to typescript`)
     return 'typescript'
   }
 
   return LANGUAGE_MAP[ext]
-}
-
-function getLanguageFromExtension(ext: string): string {
-  if (ext === 'js') {
-    return 'javascript'
-  }
-  if (ext === 'jsx') {
-    return 'jsx'
-  }
-  if (ext === 'ts') {
-    return 'typescript'
-  }
-  if (ext === 'tsx') {
-    return 'tsx'
-  }
-  return ext
 }
 
 function convertTreeSitterNode(node: Node): ASTNode {

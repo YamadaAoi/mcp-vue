@@ -118,7 +118,7 @@ export interface TypePropertyInfo {
 }
 
 export interface TsParseResult {
-  language: string
+  language: 'typescript' | 'tsx' | 'javascript' | 'jsx'
   ast: ASTNode
   functions: FunctionInfo[]
   functionCalls: FunctionCallInfo[]

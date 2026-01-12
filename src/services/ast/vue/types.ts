@@ -29,6 +29,9 @@ export interface PropInfo extends Locatable {
   required?: boolean
   validator?: boolean
   validatorExpression?: string
+  isModelProp?: boolean
+  isSlotsProp?: boolean
+  comment?: string
 }
 
 // 通用的Emit信息接口
@@ -36,6 +39,8 @@ export interface EmitInfo extends Locatable {
   name: string
   parameters?: string[]
   type?: string
+  isModelEvent?: boolean
+  comment?: string
 }
 
 // 通用的Method信息接口
@@ -44,6 +49,8 @@ export interface VueMethodInfo extends Locatable {
   parameters: string[]
   returnType?: string
   isAsync?: boolean
+  isPrivate?: boolean
+  comment?: string
 }
 
 // Composition API - Ref信息
@@ -67,7 +74,9 @@ export interface ComputedInfo extends Locatable {
   name: string
   type?: string
   isReadonly?: boolean
+  hasSetter?: boolean
   dependencies?: string[]
+  comment?: string
 }
 
 // Composition API - Watch信息
@@ -76,6 +85,8 @@ export interface WatchInfo extends Locatable {
   dependencies: string[]
   isDeep?: boolean
   isImmediate?: boolean
+  flush?: 'pre' | 'post' | 'sync'
+  isArrayWatch?: boolean
   callbackType?: 'function' | 'object'
 }
 
@@ -96,6 +107,8 @@ export interface ProvideInfo extends Locatable {
   key: string
   value?: initialValue
   type?: string
+  isSymbolKey?: boolean
+  isReactive?: boolean
 }
 
 // Composition API - Inject信息
@@ -104,6 +117,8 @@ export interface InjectInfo extends Locatable {
   alias?: string
   default?: initialValue
   type?: string
+  isSymbolKey?: boolean
+  isReactive?: boolean
 }
 
 // Composition API - Variable信息
@@ -118,6 +133,8 @@ export interface VariableInfo extends Locatable {
 export interface ExposeInfo extends Locatable {
   name: string
   type: 'property' | 'method'
+  valueType?: string
+  initialValue?: initialValue
 }
 
 // Options API - Data Property信息
@@ -171,19 +188,55 @@ export interface ComponentInfo extends Locatable {
   isGlobal?: boolean
 }
 
+export interface TemplateInfo {
+  hasTemplate: boolean
+  directives?: string[]
+  components?: string[]
+  slots?: string[]
+}
+
+export interface StyleInfo {
+  lang?: string
+  scoped?: boolean
+  module?: string
+  hasStyle: boolean
+}
+
+export interface SlotsInfo extends Locatable {
+  name: string
+  type?: 'default' | 'named' | 'scoped'
+}
+
+export interface AttrsInfo {
+  hasAttrs: boolean
+  attrs?: Record<string, string>
+}
+
+export interface ImportInfo {
+  source: string
+  importedNames: string[]
+  isDefaultImport: boolean
+  isNamespaceImport: boolean
+  isTypeImport?: boolean
+  startPosition?: Position
+  endPosition?: Position
+}
+
 // Vue 2 Options API 信息接口
 export interface Vue2OptionsAPIInfo {
+  name?: string
+  inheritAttrs?: boolean
   dataProperties?: DataPropertyInfo[]
   computedProperties?: ComputedPropertyInfo[]
   watchProperties?: WatchPropertyInfo[]
-  methods?: VueMethodInfo[] // Vue 2 options中的方法
+  methods?: VueMethodInfo[]
   lifecycleHooks?: LifecycleHookInfo[]
   filters?: FilterInfo[]
   directives?: DirectiveInfo[]
   mixins?: MixinInfo[]
   components?: ComponentInfo[]
-  props?: PropInfo[] // Vue 2 options中的props
-  emits?: EmitInfo[] // Vue 2 options中的emits
+  props?: PropInfo[]
+  emits?: EmitInfo[]
   model?: string
 }
 
@@ -193,6 +246,7 @@ export interface Vue3OptionsAPIInfo extends Omit<
   'filters' | 'lifecycleHooks'
 > {
   lifecycleHooks?: LifecycleHookInfo[]
+  setup?: string
 }
 
 // Vue 3 Composition API 信息接口
@@ -205,22 +259,26 @@ export interface VueCompositionAPIInfo {
   lifecycleHooks?: LifecycleHookInfo[]
   provide?: ProvideInfo[]
   inject?: InjectInfo[]
-  variables?: VariableInfo[] // Vue 3 setup中的变量
-  expose?: ExposeInfo[] // Vue 3 setup中暴露的属性和方法
-  props?: PropInfo[] // Vue 3 setup中的props
-  emits?: EmitInfo[] // Vue 3 setup中的emits
-  methods?: VueMethodInfo[] // Vue 3 setup中的方法
+  variables?: VariableInfo[]
+  expose?: ExposeInfo[]
+  props?: PropInfo[]
+  emits?: EmitInfo[]
+  methods?: VueMethodInfo[]
+  slots?: SlotsInfo[]
+  attrs?: AttrsInfo
 }
 
 // Vue 组件解析结果接口（具有Vue特色的返回类型）
 export interface VueParseResult {
   language: 'vue'
+  componentMetadata?: {
+    name?: string
+    inheritAttrs?: boolean
+  }
+  scriptType?: 'setup' | 'normal' | 'module'
+  templateInfo?: TemplateInfo
+  styleInfo?: StyleInfo[]
   optionsAPI?: Vue2OptionsAPIInfo | Vue3OptionsAPIInfo
   compositionAPI?: VueCompositionAPIInfo
-  imports?: {
-    source: string
-    importedNames: string[]
-    isDefaultImport: boolean
-    isNamespaceImport: boolean
-  }[]
+  imports?: ImportInfo[]
 }
