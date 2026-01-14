@@ -1,13 +1,11 @@
+import { readFileSync, statSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { ParseResult } from './types'
 import type { ToolRegistration } from '../../utils/mcpServer'
 import { parseTypeScript, parseTSX } from './typescript/tsParser'
 import { parseVue } from './vue/vueParser'
-import { buildSummary as buildTsSummary } from './typescript/summaryBuilder'
-import { buildSummary as buildVueSummary } from './vue/summaryBuilder'
 import { getLogger } from '../../utils/logger'
 import { getConfigManager } from '../../utils/config'
-import { readFileSync, statSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { CacheManager } from './cache/cacheManager'
 
 const logger = getLogger()
@@ -134,7 +132,7 @@ export function createASTTools(): ToolRegistration[] {
       tool: {
         name: 'parse_code',
         description:
-          'Parse a TypeScript, JavaScript, or Vue file and extract ALL AST information in one call. This is the PRIMARY and RECOMMENDED tool for code analysis. It returns: functions, classes, variables, imports, exports, types, and for Vue files - template directives, bindings, events, and components. The MCP server will read the file from the local filesystem, so you only need to provide the file path.',
+          'Parse a TypeScript, JavaScript, or Vue file and extract ALL AST information in one call. This is the PRIMARY and RECOMMENDED tool for code analysis. Returns structured JSON data including: functions, classes, variables, imports, exports, types, and for Vue files - template directives, bindings, events, and components. The MCP server will read the file from the local filesystem, so you only need to provide the file path.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -156,45 +154,18 @@ export function createASTTools(): ToolRegistration[] {
         try {
           const result = await parseFile(filepath)
 
-          if (result.language === 'vue') {
-            const vueResult = result
-            logger.info(`Successfully parsed Vue file: ${filepath}`, {
-              language: vueResult.language,
-              cacheSize: cacheManager.size
-            })
+          logger.info(`Successfully parsed: ${filepath}`, {
+            language: result.language,
+            cacheSize: cacheManager.size
+          })
 
-            const summary = buildVueSummary(vueResult, filepath)
-
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: summary
-                }
-              ]
-            }
-          } else {
-            const tsResult = result
-            logger.info(`Successfully parsed: ${filepath}`, {
-              functions: tsResult.functions.length,
-              classes: tsResult.classes.length,
-              types: tsResult.types.length,
-              imports: tsResult.imports.length,
-              exports: tsResult.exports.length,
-              variables: tsResult.variables.length,
-              cacheSize: cacheManager.size
-            })
-
-            const summary = buildTsSummary(tsResult, filepath)
-
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: summary
-                }
-              ]
-            }
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(result)
+              }
+            ]
           }
         } catch (error) {
           handleParseError(error, 'parse code', filepath)
