@@ -1,13 +1,13 @@
+import type { Statement, ObjectExpression } from '@babel/types'
+
 /**
  * 判断是否为Vue2选项式API编写的组件
  * @param fileContent Vue文件内容
  * @returns 如果确定是Vue2选项式API则返回true，否则返回false
  */
 export function isVue2OptionsAPI(fileContent: string): boolean {
-  // 转换为小写以进行不区分大小写的检查
   const contentLower = fileContent.toLowerCase()
 
-  // 检测是否使用了script setup
   if (
     contentLower.includes('<script setup') ||
     contentLower.includes('<script setup')
@@ -15,15 +15,12 @@ export function isVue2OptionsAPI(fileContent: string): boolean {
     return false
   }
 
-  // 检测是否使用了Vue 3的defineComponent调用
   if (contentLower.includes('definecomponent(')) {
     return false
   }
 
-  // Vue2特有的生命周期钩子
   const vue2LifecycleHooks = ['beforeDestroy', 'destroyed']
 
-  // Vue2特有的功能
   const vue2SpecificFeatures = [
     'filters',
     '$set',
@@ -33,26 +30,118 @@ export function isVue2OptionsAPI(fileContent: string): boolean {
     'Vue.extend'
   ]
 
-  // 检查是否使用了Vue 2的export default {}语法（而不是defineComponent）
   if (contentLower.includes('export default {')) {
-    // 这是一个Vue 2组件（可能是Options API或Composition API）
     return true
   }
 
-  // 检查是否包含Vue2特有特征
   for (const feature of vue2SpecificFeatures) {
     if (contentLower.includes(feature.toLowerCase())) {
       return true
     }
   }
 
-  // 检查是否包含Vue2生命周期钩子
   for (const hook of vue2LifecycleHooks) {
     if (contentLower.includes(hook.toLowerCase())) {
       return true
     }
   }
 
-  // 默认返回false（如果无法确定，则视为Vue3）
   return false
+}
+
+/**
+ * 验证输入参数的有效性
+ * @param code Vue组件代码
+ * @param filename 文件名
+ */
+export function validateInput(code: string, filename: string): void {
+  if (!code || typeof code !== 'string') {
+    throw new Error('Invalid code: code must be a non-empty string')
+  }
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('Invalid filename: filename must be a non-empty string')
+  }
+}
+
+/**
+ * 检测是否是Vue Options API组件
+ */
+export function isOptionsAPIComponent(ast: Statement[]): boolean {
+  const exportDefaultNode = ast.find(
+    node => node.type === 'ExportDefaultDeclaration'
+  )
+
+  if (!exportDefaultNode) return false
+
+  let componentOptions: ObjectExpression | null = null
+
+  if (exportDefaultNode.declaration.type === 'ObjectExpression') {
+    componentOptions = exportDefaultNode.declaration
+  } else if (exportDefaultNode.declaration.type === 'CallExpression') {
+    const callExpr = exportDefaultNode.declaration
+    if (
+      callExpr.callee.type === 'Identifier' &&
+      callExpr.callee.name === 'defineComponent' &&
+      callExpr.arguments.length > 0 &&
+      callExpr.arguments[0].type === 'ObjectExpression'
+    ) {
+      componentOptions = callExpr.arguments[0]
+    }
+  }
+
+  if (componentOptions) {
+    const hasSetup = componentOptions.properties.some(prop => {
+      if (prop.type !== 'ObjectProperty' && prop.type !== 'ObjectMethod')
+        return false
+      if (!('key' in prop) || prop.key.type !== 'Identifier') return false
+      return prop.key.name === 'setup'
+    })
+
+    if (hasSetup) return false
+
+    const hasOptionsAPIProps = componentOptions.properties.some(prop => {
+      if (prop.type !== 'ObjectProperty' && prop.type !== 'ObjectMethod')
+        return false
+      if (!('key' in prop) || prop.key.type !== 'Identifier') return false
+      const keyName = prop.key.name
+      return [
+        'data',
+        'methods',
+        'computed',
+        'watch',
+        'created',
+        'mounted'
+      ].includes(keyName)
+    })
+
+    return hasOptionsAPIProps
+  }
+
+  return false
+}
+
+/**
+ * 检测是否是Vue Composition API组件（包含setup函数）
+ */
+export function hasSetupFunction(ast: Statement[]): boolean {
+  const exportDefaultNode = ast.find(
+    node => node.type === 'ExportDefaultDeclaration'
+  )
+
+  if (
+    !exportDefaultNode ||
+    exportDefaultNode.declaration.type !== 'ObjectExpression'
+  ) {
+    return false
+  }
+
+  const objExpr = exportDefaultNode.declaration
+  return objExpr.properties.some(prop => {
+    if (prop.type !== 'ObjectProperty' && prop.type !== 'ObjectMethod')
+      return false
+
+    if (!prop.key || prop.key.type !== 'Identifier') return false
+
+    return prop.key.name === 'setup'
+  })
 }

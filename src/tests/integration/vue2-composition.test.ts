@@ -35,4 +35,14 @@ describe('MCP Code Parser - Vue 2 Composition API', () => {
       expect(result.compositionAPI?.methods?.length).toBeGreaterThan(0)
     })
   })
+
+  describe('Props Extraction', () => {
+    it('should extract props from Vue 2 Composition API component', () => {
+      const result = parseVue(vue27Composition, 'test.vue')
+
+      // Check that props array is returned correctly
+      expect(result.compositionAPI?.props).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.props)).toBe(true)
+    })
+  })
 })

@@ -69,4 +69,31 @@ describe('MCP Code Parser - Vue 3 Options API', () => {
       expect(result.optionsAPI?.methods?.length).toBeGreaterThan(0)
     })
   })
+
+  describe('Props Extraction', () => {
+    it('should extract props from Vue 3 Options API component with defineComponent', () => {
+      const result = parseVue(vueOptionsAPI, 'test.vue')
+
+      // Check that props array is returned correctly
+      expect(result.optionsAPI?.props).toBeDefined()
+      expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
+    })
+
+    it('should extract props from Vue 3 Options API component with props defaults', () => {
+      const result = parseVue(vueOptionsPropsDefaults, 'test.vue')
+
+      // Check that props array is returned correctly
+      expect(result.optionsAPI?.props).toBeDefined()
+      expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
+      expect(result.optionsAPI?.props?.length).toBeGreaterThan(0)
+    })
+
+    it('should extract props from simple Vue 3 Options API component', () => {
+      const result = parseVue(vueOptionsSimple, 'test.vue')
+
+      // Check that props array is returned correctly
+      expect(result.optionsAPI?.props).toBeDefined()
+      expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
+    })
+  })
 })
