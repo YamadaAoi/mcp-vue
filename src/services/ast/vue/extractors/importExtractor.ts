@@ -1,5 +1,20 @@
-import type { Statement } from '@babel/types'
+import type {
+  Statement,
+  ImportDefaultSpecifier,
+  ImportNamespaceSpecifier,
+  ImportSpecifier
+} from '@babel/types'
 import type { Position } from '../types'
+
+type LocatableNode = {
+  loc?:
+    | {
+        start?: { line?: number; column?: number }
+        end?: { line?: number; column?: number }
+      }
+    | null
+    | undefined
+}
 
 /**
  * 从节点获取位置信息的通用函数
@@ -8,15 +23,7 @@ import type { Position } from '../types'
  * @returns 位置信息对象
  */
 function getLocationFromNode(
-  node: {
-    loc?:
-      | {
-          start?: { line?: number; column?: number }
-          end?: { line?: number; column?: number }
-        }
-      | null
-      | undefined
-  },
+  node: LocatableNode,
   positionType: 'start' | 'end'
 ): Position {
   const position = positionType === 'start' ? node?.loc?.start : node?.loc?.end
@@ -31,15 +38,7 @@ function getLocationFromNode(
  * @param node AST节点
  * @returns 位置信息对象
  */
-export function getPositionFromNode(node: {
-  loc?:
-    | {
-        start?: { line?: number; column?: number }
-        end?: { line?: number; column?: number }
-      }
-    | null
-    | undefined
-}): Position {
+export function getPositionFromNode(node: LocatableNode): Position {
   return getLocationFromNode(node, 'start')
 }
 
@@ -48,28 +47,51 @@ export function getPositionFromNode(node: {
  * @param node AST节点
  * @returns 结束位置信息
  */
-export function getEndPositionFromNode(node: {
-  loc?:
-    | {
-        start?: { line?: number; column?: number }
-        end?: { line?: number; column?: number }
-      }
-    | null
-    | undefined
-}): Position {
+export function getEndPositionFromNode(node: LocatableNode): Position {
   return getLocationFromNode(node, 'end')
 }
 
-/**
- * 导入信息类型定义
- */
 export interface ImportInfo {
   source: string
   importedNames: string[]
   isDefaultImport: boolean
   isNamespaceImport: boolean
-  startPosition: Position
-  endPosition: Position
+  isTypeImport?: boolean
+  startPosition?: Position
+  endPosition?: Position
+}
+
+/**
+ * 解析导入 specifier
+ * @param specifier 导入 specifier
+ * @param importedNames 导入名称数组
+ * @param isDefaultImport 是否为默认导入
+ * @param isNamespaceImport 是否为命名空间导入
+ */
+function parseImportSpecifier(
+  specifier:
+    | ImportDefaultSpecifier
+    | ImportNamespaceSpecifier
+    | ImportSpecifier,
+  importedNames: string[],
+  isDefaultImport: boolean,
+  isNamespaceImport: boolean
+): { isDefaultImport: boolean; isNamespaceImport: boolean } {
+  if (specifier.type === 'ImportDefaultSpecifier') {
+    importedNames.push(specifier.local.name)
+    return { isDefaultImport: true, isNamespaceImport }
+  } else if (specifier.type === 'ImportNamespaceSpecifier') {
+    importedNames.push(specifier.local.name)
+    return { isDefaultImport, isNamespaceImport: true }
+  } else if (specifier.type === 'ImportSpecifier') {
+    const importedName =
+      specifier.imported.type === 'Identifier'
+        ? specifier.imported.name
+        : specifier.imported.value
+    importedNames.push(importedName)
+    return { isDefaultImport, isNamespaceImport }
+  }
+  return { isDefaultImport, isNamespaceImport }
 }
 
 /**
@@ -87,24 +109,17 @@ export function extractImports(ast: Statement[]): ImportInfo[] {
       const importedNames: string[] = []
       let isDefaultImport = false
       let isNamespaceImport = false
+      let isTypeImport = importNode.importKind === 'type'
 
       for (const specifier of importNode.specifiers) {
-        if (specifier.type === 'ImportDefaultSpecifier') {
-          const defaultSpec = specifier
-          isDefaultImport = true
-          importedNames.push(defaultSpec.local.name)
-        } else if (specifier.type === 'ImportNamespaceSpecifier') {
-          const namespaceSpec = specifier
-          isNamespaceImport = true
-          importedNames.push(namespaceSpec.local.name)
-        } else if (specifier.type === 'ImportSpecifier') {
-          const importSpec = specifier
-          const importedName =
-            importSpec.imported.type === 'Identifier'
-              ? importSpec.imported.name
-              : importSpec.imported.value
-          importedNames.push(importedName)
-        }
+        const result = parseImportSpecifier(
+          specifier,
+          importedNames,
+          isDefaultImport,
+          isNamespaceImport
+        )
+        isDefaultImport = result.isDefaultImport
+        isNamespaceImport = result.isNamespaceImport
       }
 
       imports.push({
@@ -112,6 +127,7 @@ export function extractImports(ast: Statement[]): ImportInfo[] {
         importedNames,
         isDefaultImport,
         isNamespaceImport,
+        isTypeImport,
         startPosition: getPositionFromNode(importNode),
         endPosition: getEndPositionFromNode(importNode)
       })

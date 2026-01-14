@@ -34,6 +34,18 @@ export default defineComponent({
     },
     decrement(): void {
       this.count--
+    },
+    greet(name: string): string {
+      return `Hello, ${name}!`
+    },
+    add(a: number, b: number): number {
+      return a + b
+    },
+    sum(numbers: number[]): number {
+      return numbers.reduce((a, b) => a + b, 0)
+    },
+    greetDefault(name: string = 'World'): string {
+      return `Hello, ${name}!`
     }
   },
   mounted() {

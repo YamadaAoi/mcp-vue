@@ -28,14 +28,23 @@ describe('MCP Code Parser - Vue 3 Composition API', () => {
 
         // Check that vue composition API imports are extracted
         const vueImports = result.imports.filter(imp => imp.source === 'vue')
-        expect(vueImports).toHaveLength(1)
-        expect(vueImports[0].importedNames).toContain('ref')
-        expect(vueImports[0].importedNames).toContain('computed')
-        expect(vueImports[0].importedNames).toContain('watch')
-        expect(vueImports[0].importedNames).toContain('onMounted')
-        expect(vueImports[0].importedNames).toContain('onUnmounted')
-        expect(vueImports[0].importedNames).toContain('defineProps')
-        expect(vueImports[0].importedNames).toContain('defineEmits')
+        expect(vueImports).toHaveLength(2)
+
+        const typeImports = vueImports.filter(imp => imp.isTypeImport)
+        expect(typeImports).toHaveLength(1)
+        expect(typeImports[0].importedNames).toContain('Ref')
+        expect(typeImports[0].importedNames).toContain('ComputedRef')
+        expect(typeImports[0].importedNames).toContain('PropType')
+
+        const valueImports = vueImports.filter(imp => !imp.isTypeImport)
+        expect(valueImports).toHaveLength(1)
+        expect(valueImports[0].importedNames).toContain('ref')
+        expect(valueImports[0].importedNames).toContain('computed')
+        expect(valueImports[0].importedNames).toContain('watch')
+        expect(valueImports[0].importedNames).toContain('onMounted')
+        expect(valueImports[0].importedNames).toContain('onUnmounted')
+        expect(valueImports[0].importedNames).toContain('defineProps')
+        expect(valueImports[0].importedNames).toContain('defineEmits')
       }
     })
 
@@ -235,6 +244,265 @@ describe('MCP Code Parser - Vue 3 Composition API', () => {
       // Check that props array is returned correctly
       expect(result.compositionAPI?.props).toBeDefined()
       expect(Array.isArray(result.compositionAPI?.props)).toBe(true)
+    })
+  })
+
+  describe('Type Import Extraction', () => {
+    it('should extract type imports correctly', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.imports).toBeDefined()
+      expect(Array.isArray(result.imports)).toBe(true)
+
+      const typeImports = result.imports?.filter(imp => imp.isTypeImport)
+      expect(typeImports).toBeDefined()
+      expect(typeImports?.length).toBeGreaterThan(0)
+
+      const vueTypeImportsFiltered = typeImports?.filter(
+        imp => imp.source === 'vue'
+      )
+      expect(vueTypeImportsFiltered).toBeDefined()
+      expect(vueTypeImportsFiltered?.length).toBe(1)
+      expect(vueTypeImportsFiltered?.[0].importedNames).toContain('Ref')
+      expect(vueTypeImportsFiltered?.[0].importedNames).toContain('ComputedRef')
+      expect(vueTypeImportsFiltered?.[0].importedNames).toContain('PropType')
+    })
+
+    it('should distinguish between type and value imports', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.imports).toBeDefined()
+      expect(Array.isArray(result.imports)).toBe(true)
+
+      const typeImports = result.imports?.filter(imp => imp.isTypeImport)
+      const valueImports = result.imports?.filter(imp => !imp.isTypeImport)
+
+      expect(typeImports?.length).toBe(1)
+      expect(typeImports?.[0].importedNames).toContain('Ref')
+      expect(typeImports?.[0].importedNames).toContain('ComputedRef')
+      expect(typeImports?.[0].importedNames).toContain('PropType')
+
+      expect(valueImports?.length).toBe(1)
+      expect(valueImports?.[0].importedNames).toContain('ref')
+      expect(valueImports?.[0].importedNames).toContain('computed')
+      expect(valueImports?.[0].importedNames).toContain('defineProps')
+    })
+  })
+
+  describe('Method Parameter Type Extraction', () => {
+    it('should extract method parameters with type annotations', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const greetMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'greet'
+      )
+      expect(greetMethod).toBeDefined()
+      expect(greetMethod?.parameters).toContain('name: string')
+      expect(greetMethod?.returnType).toBe('string')
+
+      const addMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'add'
+      )
+      expect(addMethod).toBeDefined()
+      expect(addMethod?.parameters).toContain('a: number')
+      expect(addMethod?.parameters).toContain('b: number')
+      expect(addMethod?.returnType).toBe('number')
+    })
+
+    it('should extract method parameters with complex types', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const processUserMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'processUser'
+      )
+      expect(processUserMethod).toBeDefined()
+      expect(processUserMethod?.parameters).toContain('user: User')
+      expect(processUserMethod?.returnType).toBe('void')
+
+      const getUsersMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'getUsers'
+      )
+      expect(getUsersMethod).toBeDefined()
+      expect(getUsersMethod?.returnType).toBe('User[]')
+    })
+
+    it('should extract method parameters with union types', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const printValueMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'printValue'
+      )
+      expect(printValueMethod).toBeDefined()
+      expect(printValueMethod?.parameters).toContain('value: string | number')
+    })
+
+    it('should extract method parameters with array types', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const sumMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'sum'
+      )
+      expect(sumMethod).toBeDefined()
+      expect(sumMethod?.parameters).toContain('numbers: number[]')
+      expect(sumMethod?.returnType).toBe('number')
+
+      const getFirstMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'getFirst'
+      )
+      expect(getFirstMethod).toBeDefined()
+      expect(getFirstMethod?.parameters).toContain('items: string[]')
+      expect(getFirstMethod?.returnType).toBe('string | undefined')
+    })
+  })
+
+  describe('Method with Destructured Parameters', () => {
+    it('should extract methods with object destructured parameters', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const greetMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'greetDestructured'
+      )
+      expect(greetMethod).toBeDefined()
+      expect(greetMethod?.parameters.length).toBeGreaterThan(0)
+      expect(greetMethod?.returnType).toBe('string')
+    })
+
+    it('should extract methods with array destructured parameters', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const sumMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'sumDestructured'
+      )
+      expect(sumMethod).toBeDefined()
+      expect(sumMethod?.parameters.length).toBeGreaterThan(0)
+      expect(sumMethod?.returnType).toBe('number')
+    })
+  })
+
+  describe('Method with Rest Parameters', () => {
+    it('should extract methods with rest parameters', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const sumAllMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'sumAll'
+      )
+      expect(sumAllMethod).toBeDefined()
+      expect(sumAllMethod?.parameters.length).toBeGreaterThan(0)
+      expect(sumAllMethod?.returnType).toBe('number')
+
+      const greetMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'greetRest'
+      )
+      expect(greetMethod).toBeDefined()
+      expect(greetMethod?.parameters.length).toBeGreaterThan(0)
+      expect(greetMethod?.returnType).toBe('string')
+    })
+  })
+
+  describe('Method with Default Parameters', () => {
+    it('should extract methods with default parameters', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const greetMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'greetDefault'
+      )
+      expect(greetMethod).toBeDefined()
+      expect(greetMethod?.parameters.length).toBeGreaterThan(0)
+      expect(greetMethod?.returnType).toBe('string')
+
+      const addMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'addDefault'
+      )
+      expect(addMethod).toBeDefined()
+      expect(addMethod?.parameters.length).toBeGreaterThan(0)
+      expect(addMethod?.returnType).toBe('number')
+    })
+  })
+
+  describe('Async Methods', () => {
+    it('should extract async methods with correct isAsync flag', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const fetchDataMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'fetchUserData'
+      )
+      expect(fetchDataMethod).toBeDefined()
+      expect(fetchDataMethod?.isAsync).toBe(true)
+      expect(fetchDataMethod?.parameters).toContain('url: string')
+      expect(fetchDataMethod?.returnType).toBe('Promise<any>')
+
+      const getUserMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'getUserData'
+      )
+      expect(getUserMethod).toBeDefined()
+      expect(getUserMethod?.isAsync).toBe(true)
+      expect(getUserMethod?.parameters).toContain('id: number')
+    })
+  })
+
+  describe('Arrow Functions', () => {
+    it('should extract arrow functions with type annotations', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const addMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'arrowAdd'
+      )
+      expect(addMethod).toBeDefined()
+      expect(addMethod?.parameters).toContain('a: number')
+      expect(addMethod?.parameters).toContain('b: number')
+      expect(addMethod?.returnType).toBe('number')
+
+      const multiplyMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'arrowMultiply'
+      )
+      expect(multiplyMethod).toBeDefined()
+      expect(multiplyMethod?.parameters).toContain('a: number')
+      expect(multiplyMethod?.parameters).toContain('b: number')
+      expect(multiplyMethod?.returnType).toBe('number')
+    })
+
+    it('should extract async arrow functions', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.methods).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.methods)).toBe(true)
+
+      const fetchDataMethod = result.compositionAPI?.methods?.find(
+        m => m.name === 'arrowFetchData'
+      )
+      expect(fetchDataMethod).toBeDefined()
+      expect(fetchDataMethod?.isAsync).toBe(true)
+      expect(fetchDataMethod?.parameters).toContain('url: string')
     })
   })
 })

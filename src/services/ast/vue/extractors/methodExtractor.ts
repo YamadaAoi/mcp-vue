@@ -5,7 +5,19 @@ import type {
   FunctionExpression,
   FunctionDeclaration,
   ObjectMethod,
-  BlockStatement
+  BlockStatement,
+  TSTypeAnnotation,
+  TypeAnnotation,
+  Noop,
+  ObjectPattern,
+  ArrayPattern,
+  RestElement,
+  AssignmentPattern,
+  Identifier,
+  PatternLike,
+  TSQualifiedName,
+  CallExpression,
+  TSType
 } from '@babel/types'
 import type { VueMethodInfo } from '../types'
 import { getPositionFromNode } from './importExtractor'
@@ -13,64 +25,120 @@ import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
 
-/**
- * 安全获取标识符名称的辅助函数
- * @param key 可能是标识符或其他类型的键
- * @returns 标识符名称或空字符串
- */
-function getIdentifierName(key: unknown): string {
-  if (
-    key &&
-    typeof key === 'object' &&
-    'type' in key &&
-    key.type === 'Identifier'
-  ) {
-    const identifier = key as { name?: string }
-    return identifier.name || ''
-  }
-  return ''
+const UNKNOWN_TYPE = 'unknown'
+const SETUP_FUNCTION_NAME = 'setup'
+const METHODS_PROPERTY_NAME = 'methods'
+const DEFINE_COMPONENT_NAME = 'defineComponent'
+const EXTEND_METHOD_NAME = 'extend'
+const PROPS_PARAM_NAME = 'props'
+const CONTEXT_PARAM_NAME = 'context'
+const TYPE_LITERAL_PLACEHOLDER = '{ ... }'
+const DEFAULT_PARAM_NAME = 'param'
+
+function wrapTypeAnnotation(type: TSType): TSTypeAnnotation {
+  return { type: 'TSTypeAnnotation', typeAnnotation: type }
 }
 
-/**
- * 解析返回类型的辅助函数
- * @param returnType 返回类型注解
- * @returns 解析后的返回类型字符串或undefined
- */
-function parseReturnType(returnType: unknown): string | undefined {
-  if (
-    returnType &&
-    typeof returnType === 'object' &&
-    'type' in returnType &&
-    returnType.type === 'TSTypeAnnotation'
-  ) {
-    const tsTypeAnnotation = returnType as { typeAnnotation?: unknown }
-    if (
-      tsTypeAnnotation.typeAnnotation &&
-      typeof tsTypeAnnotation.typeAnnotation === 'object'
-    ) {
-      const typeAnnot = tsTypeAnnotation.typeAnnotation as {
-        type?: string
-        typeName?: unknown
-      }
-      switch (typeAnnot.type) {
-        case 'TSStringKeyword':
-          return 'string'
-        case 'TSNumberKeyword':
-          return 'number'
-        case 'TSBooleanKeyword':
-          return 'boolean'
-        case 'TSAnyKeyword':
-          return 'any'
-        case 'TSArrayType':
-          return 'Array'
-        case 'TSTypeReference':
-          return getIdentifierName(typeAnnot.typeName)
-        default:
-          return undefined
-      }
-    }
+function parseTypeAnnotation(
+  typeAnnotation: TSTypeAnnotation | TypeAnnotation | Noop
+): string {
+  if (!typeAnnotation || typeAnnotation.type === 'Noop') {
+    return UNKNOWN_TYPE
   }
-  return undefined
+
+  const type = typeAnnotation.typeAnnotation
+
+  switch (type.type) {
+    case 'TSStringKeyword':
+      return 'string'
+    case 'TSNumberKeyword':
+      return 'number'
+    case 'TSBooleanKeyword':
+      return 'boolean'
+    case 'TSAnyKeyword':
+      return 'any'
+    case 'TSUnknownKeyword':
+      return UNKNOWN_TYPE
+    case 'TSVoidKeyword':
+      return 'void'
+    case 'TSNullKeyword':
+      return 'null'
+    case 'TSUndefinedKeyword':
+      return 'undefined'
+    case 'TSNeverKeyword':
+      return 'never'
+    case 'TSArrayType':
+      return `${parseTypeAnnotation(wrapTypeAnnotation(type.elementType))}[]`
+    case 'TSTypeReference':
+      if (type.typeName.type === 'Identifier') {
+        const typeName = type.typeName.name
+        if (type.typeParameters && type.typeParameters.params.length > 0) {
+          const typeParams = type.typeParameters.params
+            .map(p => parseTypeAnnotation(wrapTypeAnnotation(p)))
+            .join(', ')
+          return `${typeName}<${typeParams}>`
+        }
+        return typeName
+      } else if (type.typeName.type === 'TSQualifiedName') {
+        const typeName = `${getQualifiedNameName(type.typeName)}`
+        if (type.typeParameters && type.typeParameters.params.length > 0) {
+          const typeParams = type.typeParameters.params
+            .map(p => parseTypeAnnotation(wrapTypeAnnotation(p)))
+            .join(', ')
+          return `${typeName}<${typeParams}>`
+        }
+        return typeName
+      }
+      return UNKNOWN_TYPE
+    case 'TSUnionType':
+      return type.types
+        .map(t => parseTypeAnnotation(wrapTypeAnnotation(t)))
+        .join(' | ')
+    case 'TSIntersectionType':
+      return type.types
+        .map(t => parseTypeAnnotation(wrapTypeAnnotation(t)))
+        .join(' & ')
+    case 'TSFunctionType':
+      const params = type.parameters
+        .map(p => {
+          if (p.type === 'Identifier') {
+            return p.name
+          }
+          return DEFAULT_PARAM_NAME
+        })
+        .join(', ')
+      const returnType = type.typeAnnotation
+        ? parseTypeAnnotation(type.typeAnnotation)
+        : 'void'
+      return `(${params}) => ${returnType}`
+    case 'TSTypeLiteral':
+      return TYPE_LITERAL_PLACEHOLDER
+    case 'TSTupleType':
+      return `[${type.elementTypes
+        .filter((t): t is TSType => t.type !== 'TSNamedTupleMember')
+        .map(t => parseTypeAnnotation(wrapTypeAnnotation(t)))
+        .join(', ')}]`
+    default:
+      return UNKNOWN_TYPE
+  }
+}
+
+function getQualifiedNameName(
+  qualifiedName: TSQualifiedName | null | undefined
+): string {
+  if (!qualifiedName) {
+    return ''
+  }
+  const leftName =
+    qualifiedName.left.type === 'Identifier'
+      ? getIdentifierName(qualifiedName.left)
+      : getQualifiedNameName(qualifiedName.left)
+  const rightName = getIdentifierName(qualifiedName.right)
+  return rightName ? `${leftName}.${rightName}` : leftName
+}
+
+function getIdentifierName(key: Identifier | null | undefined): string {
+  return key?.name || ''
 }
 
 /**
@@ -78,26 +146,23 @@ function parseReturnType(returnType: unknown): string | undefined {
  * @param node AST节点
  * @returns 是否为defineComponent调用
  */
-function isDefineComponentCall(node: unknown): boolean {
-  if (
-    node &&
-    typeof node === 'object' &&
-    'type' in node &&
-    node.type === 'CallExpression'
-  ) {
-    const callExpr = node as { callee?: unknown }
-    if (callExpr.callee && typeof callExpr.callee === 'object') {
-      const callee = callExpr.callee
-      if ('type' in callee) {
-        if (callee.type === 'Identifier') {
-          const identifier = callee as { name?: string }
-          return identifier.name === 'defineComponent'
-        } else if (callee.type === 'MemberExpression') {
-          const memberExpr = callee as { property?: unknown }
-          return getIdentifierName(memberExpr.property) === 'defineComponent'
-        }
-      }
-    }
+function isDefineComponentCall(
+  node: CallExpression | null | undefined
+): boolean {
+  if (!node) {
+    return false
+  }
+  const callee = node.callee
+  if (!callee) {
+    return false
+  }
+  if (callee.type === 'Identifier') {
+    return callee.name === DEFINE_COMPONENT_NAME
+  } else if (callee.type === 'MemberExpression') {
+    return (
+      callee.property.type === 'Identifier' &&
+      getIdentifierName(callee.property) === DEFINE_COMPONENT_NAME
+    )
   }
   return false
 }
@@ -176,7 +241,8 @@ export function extractMethods(ast: Statement[]): VueMethodInfo[] {
         // 检查是否为 Vue.extend() 调用
         if (
           callExpr.callee.type === 'MemberExpression' &&
-          getIdentifierName(callExpr.callee.property) === 'extend'
+          callExpr.callee.property.type === 'Identifier' &&
+          getIdentifierName(callExpr.callee.property) === EXTEND_METHOD_NAME
         ) {
           if (
             callExpr.arguments.length > 0 &&
@@ -206,7 +272,7 @@ function extractMethodsFromObject(
       const objProp = prop
       if (
         objProp.key.type === 'Identifier' &&
-        objProp.key.name === 'methods' &&
+        objProp.key.name === METHODS_PROPERTY_NAME &&
         objProp.value.type === 'ObjectExpression'
       ) {
         // 找到methods对象，提取其中的方法
@@ -253,7 +319,7 @@ function extractMethodsFromSetupFunction(
       const objProp = prop
       if (objProp.key && objProp.key.type === 'Identifier') {
         if (
-          objProp.key.name === 'setup' &&
+          objProp.key.name === SETUP_FUNCTION_NAME &&
           (objProp.value.type === 'FunctionExpression' ||
             objProp.value.type === 'ArrowFunctionExpression')
         ) {
@@ -273,7 +339,7 @@ function extractMethodsFromSetupFunction(
       if (
         objMethod.key &&
         objMethod.key.type === 'Identifier' &&
-        objMethod.key.name === 'setup'
+        objMethod.key.name === SETUP_FUNCTION_NAME
       ) {
         logger.debug('Found setup function as ObjectMethod')
         logger.debug('Setup function body type:', objMethod.body.type)
@@ -282,6 +348,154 @@ function extractMethodsFromSetupFunction(
       }
     }
   }
+}
+
+function parseIdentifierParam(param: {
+  name: string
+  typeAnnotation?: TSTypeAnnotation | TypeAnnotation | Noop | null
+}): string {
+  const paramName = param.name
+  if (param.typeAnnotation) {
+    const paramType = parseTypeAnnotation(param.typeAnnotation)
+    return `${paramName}: ${paramType}`
+  }
+  return paramName
+}
+
+function parseObjectPatternParam(param: ObjectPattern): string {
+  const paramParts: string[] = []
+  for (const prop of param.properties) {
+    if (prop.type === 'ObjectProperty') {
+      if (prop.key?.type === 'Identifier' && prop.key.name) {
+        const propName = prop.key.name
+        if (prop.value?.type === 'Identifier' && prop.value.typeAnnotation) {
+          const propType = parseTypeAnnotation(prop.value.typeAnnotation)
+          paramParts.push(`${propName}: ${propType}`)
+        } else {
+          paramParts.push(propName)
+        }
+      } else if (prop.key?.type === 'StringLiteral' && prop.key.value) {
+        const propName = prop.key.value
+        paramParts.push(`"${propName}"`)
+      }
+    } else if (
+      prop.type === 'RestElement' &&
+      prop.argument?.type === 'Identifier' &&
+      prop.argument.name
+    ) {
+      paramParts.push(`...${prop.argument.name}`)
+    }
+  }
+  if (param.typeAnnotation) {
+    const patternType = parseTypeAnnotation(param.typeAnnotation)
+    return `{ ${paramParts.join(', ')} }: ${patternType}`
+  }
+  return `{ ${paramParts.join(', ')} }`
+}
+
+function parseArrayPatternParam(param: {
+  elements: Array<PatternLike | null>
+  typeAnnotation?: TSTypeAnnotation | TypeAnnotation | Noop | null
+}): string {
+  const elemParts: string[] = []
+  for (const elem of param.elements) {
+    if (!elem) continue
+
+    if (elem.type === 'Identifier' && elem.name) {
+      const elemName = elem.name
+      if (elem.typeAnnotation) {
+        const elemType = parseTypeAnnotation(elem.typeAnnotation)
+        elemParts.push(`${elemName}: ${elemType}`)
+      } else {
+        elemParts.push(elemName)
+      }
+    } else if (
+      elem.type === 'RestElement' &&
+      elem.argument?.type === 'Identifier' &&
+      elem.argument.name
+    ) {
+      elemParts.push(`...${elem.argument.name}`)
+    }
+  }
+  if (param.typeAnnotation) {
+    const arrayType = parseTypeAnnotation(param.typeAnnotation)
+    return `[${elemParts.join(', ')}]: ${arrayType}`
+  }
+  return `[${elemParts.join(', ')}]`
+}
+
+function parseRestElementParam(param: RestElement): string {
+  if (param.argument.type === 'Identifier' && param.argument.name) {
+    const paramName = param.argument.name
+    if (param.typeAnnotation) {
+      const paramType = parseTypeAnnotation(param.typeAnnotation)
+      return `...${paramName}: ${paramType}`
+    }
+    return `...${paramName}`
+  }
+  return ''
+}
+
+function parseAssignmentPatternParam(param: AssignmentPattern): string {
+  if (param.left.type === 'Identifier' && param.left.name) {
+    const paramName = param.left.name
+    if (param.left.typeAnnotation) {
+      const paramType = parseTypeAnnotation(param.left.typeAnnotation)
+      return `${paramName}: ${paramType} = ...`
+    }
+    return `${paramName} = ...`
+  }
+  return ''
+}
+
+function parseFunctionParameters(
+  params: Array<
+    | Identifier
+    | ObjectPattern
+    | ArrayPattern
+    | RestElement
+    | AssignmentPattern
+    | { type: 'VoidPattern' }
+  >
+): string[] {
+  const parameters: string[] = []
+  for (const param of params) {
+    if (param.type === 'Identifier') {
+      parameters.push(parseIdentifierParam(param))
+    } else if (param.type === 'ObjectPattern') {
+      parameters.push(parseObjectPatternParam(param))
+    } else if (param.type === 'ArrayPattern') {
+      parameters.push(parseArrayPatternParam(param))
+    } else if (param.type === 'RestElement') {
+      parameters.push(parseRestElementParam(param))
+    } else if (param.type === 'AssignmentPattern') {
+      parameters.push(parseAssignmentPatternParam(param))
+    }
+  }
+  return parameters
+}
+
+function getFunctionReturnType(
+  funcExpr:
+    | FunctionExpression
+    | ArrowFunctionExpression
+    | FunctionDeclaration
+    | ObjectMethod
+): string | undefined {
+  if (
+    funcExpr.type === 'FunctionDeclaration' ||
+    funcExpr.type === 'FunctionExpression' ||
+    funcExpr.type === 'ObjectMethod'
+  ) {
+    if (funcExpr.returnType) {
+      return parseTypeAnnotation(funcExpr.returnType)
+    }
+  } else if (funcExpr.type === 'ArrowFunctionExpression') {
+    if (funcExpr.returnType) {
+      return parseTypeAnnotation(funcExpr.returnType)
+    }
+  }
+  return undefined
 }
 
 /**
@@ -373,51 +587,16 @@ function extractFunctionInfo(
 
   if (!methodName) return
 
-  // 提取参数信息
-  const parameters: string[] = []
-  for (const param of funcExpr.params) {
-    if (param.type === 'Identifier') {
-      parameters.push(param.name)
-    } else if (param.type === 'ObjectPattern') {
-      // 处理解构参数 { prop1, prop2 } => [{ name: 'prop1' }, { name: 'prop2' }]
-      for (const prop of param.properties) {
-        if (prop.type === 'ObjectProperty') {
-          const objProp = prop
-          if (objProp.key.type === 'Identifier') {
-            parameters.push(objProp.key.name)
-          }
-        }
-      }
-    } else if (param.type === 'ArrayPattern') {
-      // 处理数组解构参数 [arg1, arg2] => [{ name: 'arg1' }, { name: 'arg2' }]
-      for (const elem of param.elements) {
-        if (elem && elem.type === 'Identifier') {
-          parameters.push(elem.name)
-        }
-      }
-    }
-  }
-
-  // 提取返回类型（简单实现，实际可能需要更复杂的类型解析）
-  let returnType: string | undefined
-  if (
-    funcExpr.type === 'FunctionDeclaration' ||
-    funcExpr.type === 'FunctionExpression'
-  ) {
-    returnType = parseReturnType(funcExpr.returnType)
-  }
-
-  // 检查是否为异步函数
+  const parameters = parseFunctionParameters(funcExpr.params)
+  const returnType = getFunctionReturnType(funcExpr)
   const isAsync = funcExpr.async || false
 
-  // 提取位置信息
   const startPosition = getPositionFromNode(funcExpr)
   const endPosition = {
     row: funcExpr.loc?.end?.line || 0,
     column: funcExpr.loc?.end?.column || 0
   }
 
-  // 添加到结果数组
   methods.push({
     name: methodName,
     parameters,
@@ -436,9 +615,11 @@ function extractFunctionInfo(
  */
 export function isSetupFunction(funcName: string, params: string[]): boolean {
   return (
-    funcName === 'setup' &&
+    funcName === SETUP_FUNCTION_NAME &&
     (params.length === 0 ||
-      (params.length === 1 && params[0] === 'props') ||
-      (params.length === 2 && params[0] === 'props' && params[1] === 'context'))
+      (params.length === 1 && params[0] === PROPS_PARAM_NAME) ||
+      (params.length === 2 &&
+        params[0] === PROPS_PARAM_NAME &&
+        params[1] === CONTEXT_PARAM_NAME))
   )
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // Vue 3 Composition API with <script setup> syntax
+import type { Ref, ComputedRef, PropType } from 'vue'
 import {
   ref,
   computed,
@@ -93,6 +94,97 @@ onUnmounted(() => {
 // These are just examples of what you might use
 const resetCount = (): void => {
   count.value = props.initialCount
+}
+
+// Methods with type annotations
+function greet(name: string): string {
+  return `Hello, ${name}!`
+}
+
+function add(a: number, b: number): number {
+  return a + b
+}
+
+// Methods with complex types
+interface User {
+  id: number
+  name: string
+  email: string
+}
+
+function processUser(user: User): void {
+  console.log(user.name)
+}
+
+function getUsers(): User[] {
+  return []
+}
+
+// Methods with union types
+function printValue(value: string | number): void {
+  console.log(value)
+}
+
+// Methods with array types
+function sum(numbers: number[]): number {
+  return numbers.reduce((a, b) => a + b, 0)
+}
+
+function getFirst(items: string[]): string | undefined {
+  return items[0]
+}
+
+// Methods with destructured parameters
+function greetDestructured({
+  name,
+  age
+}: {
+  name: string
+  age: number
+}): string {
+  return `Hello ${name}, you are ${age} years old`
+}
+
+function sumDestructured([a, b]: [number, number]): number {
+  return a + b
+}
+
+// Methods with rest parameters
+function sumAll(...numbers: number[]): number {
+  return numbers.reduce((a, b) => a + b, 0)
+}
+
+function greetRest(greeting: string, ...names: string[]): string {
+  return `${greeting}, ${names.join(', ')}!`
+}
+
+// Methods with default parameters
+function greetDefault(name: string = 'World'): string {
+  return `Hello, ${name}!`
+}
+
+function addDefault(a: number, b: number = 0): number {
+  return a + b
+}
+
+// Async methods
+async function fetchUserData(url: string): Promise<any> {
+  const response = await fetch(url)
+  return response.json()
+}
+
+async function getUserData(id: number): Promise<{ id: number; name: string }> {
+  return { id, name: 'John' }
+}
+
+// Arrow functions
+const arrowAdd = (a: number, b: number): number => a + b
+const arrowMultiply = (a: number, b: number): number => a * b
+
+// Async arrow functions
+const arrowFetchData = async (url: string): Promise<any> => {
+  const response = await fetch(url)
+  return response.json()
 }
 </script>
 
