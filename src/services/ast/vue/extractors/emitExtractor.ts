@@ -203,10 +203,13 @@ function extractEmitsFromObjectProperties(
   for (const prop of objExpr.properties) {
     if (prop.type === 'ObjectProperty') {
       const objProp = prop
-      if (
-        objProp.key.type === 'Identifier' &&
-        objProp.key.name === EMITS_PROPERTY_NAME
-      ) {
+      const isEmitsProperty =
+        (objProp.key.type === 'Identifier' &&
+          objProp.key.name === EMITS_PROPERTY_NAME) ||
+        (objProp.key.type === 'StringLiteral' &&
+          objProp.key.value === EMITS_PROPERTY_NAME)
+
+      if (isEmitsProperty) {
         if (objProp.value.type === 'ArrayExpression') {
           return extractEmitsFromArrayExpression(objProp.value)
         } else if (objProp.value.type === 'ObjectExpression') {

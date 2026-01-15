@@ -93,8 +93,12 @@ export function isOptionsAPIComponent(ast: Statement[]): boolean {
     const hasSetup = componentOptions.properties.some(prop => {
       if (prop.type !== 'ObjectProperty' && prop.type !== 'ObjectMethod')
         return false
-      if (!('key' in prop) || prop.key.type !== 'Identifier') return false
-      return prop.key.name === 'setup'
+      if (!('key' in prop)) return false
+      const key = prop.key
+      return (
+        (key.type === 'Identifier' && key.name === 'setup') ||
+        (key.type === 'StringLiteral' && key.value === 'setup')
+      )
     })
 
     if (hasSetup) return false
@@ -102,15 +106,24 @@ export function isOptionsAPIComponent(ast: Statement[]): boolean {
     const hasOptionsAPIProps = componentOptions.properties.some(prop => {
       if (prop.type !== 'ObjectProperty' && prop.type !== 'ObjectMethod')
         return false
-      if (!('key' in prop) || prop.key.type !== 'Identifier') return false
-      const keyName = prop.key.name
+      if (!('key' in prop)) return false
+      const key = prop.key
+      const keyName =
+        key.type === 'Identifier'
+          ? key.name
+          : key.type === 'StringLiteral'
+            ? key.value
+            : null
+      if (!keyName) return false
       return [
         'data',
         'methods',
         'computed',
         'watch',
         'created',
-        'mounted'
+        'mounted',
+        'props',
+        'emits'
       ].includes(keyName)
     })
 

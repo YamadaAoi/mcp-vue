@@ -2,85 +2,31 @@ import { describe, it, expect } from 'vitest'
 import { parseVue } from '../../services/ast/vue/vueParser'
 import {
   vueOptionsDefault,
-  vueOptionsDefineComponent,
-  vueOptionsPropsDefaults
+  vueOptionsPropsDefaults as vue2OptionsPropsDefaults
 } from '../fixtures/vue2/options'
+import {
+  vueOptionsAPI,
+  vueOptionsPropsDefaults,
+  vueOptionsSimple
+} from '../fixtures/vue3/options'
+import { vue27Composition } from '../fixtures/vue2/composition'
+import {
+  vueComponent,
+  vueSetupScript,
+  vueCompositionWithDefaults,
+  vueSetupFunction,
+  vueSpecialAPIs
+} from '../fixtures/vue3/composition'
 
-describe('MCP Code Parser - Vue 2 Options API', () => {
-  describe('Import Extraction', () => {
-    it('should extract imports from Vue 2 Options API component with export default', () => {
-      const result = parseVue(vueOptionsDefault, 'test.vue')
-
-      // Check that imports array is returned correctly if it exists
-      if (result.imports) {
-        expect(Array.isArray(result.imports)).toBe(true)
-      }
-    })
-
-    it('should extract imports from Vue 2 Options API component with defineComponent', () => {
-      const result = parseVue(vueOptionsDefineComponent, 'test.vue')
-
-      // Check that imports array is returned correctly if it exists
-      if (result.imports) {
-        expect(Array.isArray(result.imports)).toBe(true)
-      }
-    })
-
-    it('should extract imports from Vue 2 Options API component with props defaults', () => {
-      const result = parseVue(vueOptionsPropsDefaults, 'test.vue')
-
-      // Check that imports array is returned correctly if it exists
-      if (result.imports) {
-        expect(Array.isArray(result.imports)).toBe(true)
-      }
-    })
-  })
-
-  describe('Method Extraction', () => {
-    it('should extract methods from Vue 2 Options API component with export default', () => {
-      const result = parseVue(vueOptionsDefault, 'test.vue')
-
-      // Check that methods array is returned correctly
-      expect(result.optionsAPI?.methods).toBeDefined()
-      expect(Array.isArray(result.optionsAPI?.methods)).toBe(true)
-
-      // VueOptionsDefault component has increment, decrement, updateUser, triggerEvent, setupEvents, teardownEvents, handleChildEvent, passListeners, passAttrs methods
-      expect(result.optionsAPI?.methods?.length).toBeGreaterThan(0)
-    })
-
-    it('should extract methods from Vue 2 Options API component with defineComponent', () => {
-      const result = parseVue(vueOptionsDefineComponent, 'test.vue')
-
-      // Check that methods array is returned correctly
-      expect(result.optionsAPI?.methods).toBeDefined()
-      expect(Array.isArray(result.optionsAPI?.methods)).toBe(true)
-
-      // VueOptionsDefineComponent component has increment, decrement, triggerEvent methods
-      expect(result.optionsAPI?.methods?.length).toBeGreaterThan(0)
-    })
-
-    it('should extract methods from Vue 2 Options API component with props defaults', () => {
-      const result = parseVue(vueOptionsPropsDefaults, 'test.vue')
-
-      // Check that methods array is returned correctly
-      expect(result.optionsAPI?.methods).toBeDefined()
-      expect(Array.isArray(result.optionsAPI?.methods)).toBe(true)
-
-      // VueOptionsPropsDefaults component has updateArray, updateObject, resetToDefaults methods
-      expect(result.optionsAPI?.methods?.length).toBeGreaterThan(0)
-    })
-  })
-
-  describe('Props Extraction', () => {
+describe('MCP Code Parser - Vue Props Extraction', () => {
+  describe('Vue 2 Options API', () => {
     it('should extract props from Vue 2 Options API component with export default', () => {
       const result = parseVue(vueOptionsDefault, 'test.vue')
 
-      // Check that props array is returned correctly
       expect(result.optionsAPI?.props).toBeDefined()
       expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
       expect(result.optionsAPI?.props?.length).toBeGreaterThan(0)
 
-      // Check that specific props are extracted
       const props = result.optionsAPI?.props || []
       const messageProp = props.find(p => p.name === 'message')
       const countProp = props.find(p => p.name === 'count')
@@ -108,23 +54,13 @@ describe('MCP Code Parser - Vue 2 Options API', () => {
       expect(configProp?.default).toBeDefined()
     })
 
-    it('should extract props from Vue 2 Options API component with defineComponent', () => {
-      const result = parseVue(vueOptionsDefineComponent, 'test.vue')
-
-      // Check that props array is returned correctly
-      expect(result.optionsAPI?.props).toBeDefined()
-      expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
-    })
-
     it('should extract props from Vue 2 Options API component with props defaults', () => {
-      const result = parseVue(vueOptionsPropsDefaults, 'test.vue')
+      const result = parseVue(vue2OptionsPropsDefaults, 'test.vue')
 
-      // Check that props array is returned correctly
       expect(result.optionsAPI?.props).toBeDefined()
       expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
       expect(result.optionsAPI?.props?.length).toBeGreaterThan(0)
 
-      // Check that specific props are extracted
       const props = result.optionsAPI?.props || []
       const complexArrayProp = props.find(p => p.name === 'complexArray')
       const nestedObjectProp = props.find(p => p.name === 'nestedObject')
@@ -162,6 +98,73 @@ describe('MCP Code Parser - Vue 2 Options API', () => {
       expect(flagProp?.type).toBe('Boolean')
       expect(flagProp?.required).toBe(false)
       expect(flagProp?.default).toBeDefined()
+    })
+  })
+
+  describe('Vue 2 Composition API', () => {
+    it('should extract props from Vue 2 Composition API component', () => {
+      const result = parseVue(vue27Composition, 'test.vue')
+
+      expect(result.compositionAPI?.props).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.props)).toBe(true)
+      expect(result.compositionAPI?.props?.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Vue 3 Composition API', () => {
+    it('should extract props from Vue 3 Composition API component', () => {
+      const result = parseVue(vueComponent, 'test.vue')
+
+      expect(result.compositionAPI?.props).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.props)).toBe(true)
+    })
+
+    it('should extract props from Vue 3 Composition API component with setup script', () => {
+      const result = parseVue(vueSetupScript, 'test.vue')
+
+      expect(result.compositionAPI?.props).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.props)).toBe(true)
+      expect(result.compositionAPI?.props?.length).toBeGreaterThan(0)
+    })
+
+    it('should extract props from Vue 3 Composition API component with defaults', () => {
+      const result = parseVue(vueCompositionWithDefaults, 'test.vue')
+
+      expect(result.compositionAPI?.props).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.props)).toBe(true)
+      expect(result.compositionAPI?.props?.length).toBeGreaterThan(0)
+    })
+
+    it('should extract props from Vue 3 Composition API component with setup function', () => {
+      const result = parseVue(vueSetupFunction, 'test.vue')
+
+      expect(result.compositionAPI?.props).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.props)).toBe(true)
+      expect(result.compositionAPI?.props?.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Vue 3 Options API', () => {
+    it('should extract props from Vue 3 Options API component with defineComponent', () => {
+      const result = parseVue(vueOptionsAPI, 'test.vue')
+
+      expect(result.optionsAPI?.props).toBeDefined()
+      expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
+    })
+
+    it('should extract props from Vue 3 Options API component with props defaults', () => {
+      const result = parseVue(vueOptionsPropsDefaults, 'test.vue')
+
+      expect(result.optionsAPI?.props).toBeDefined()
+      expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
+      expect(result.optionsAPI?.props?.length).toBeGreaterThan(0)
+    })
+
+    it('should extract props from simple Vue 3 Options API component', () => {
+      const result = parseVue(vueOptionsSimple, 'test.vue')
+
+      expect(result.optionsAPI?.props).toBeDefined()
+      expect(Array.isArray(result.optionsAPI?.props)).toBe(true)
     })
   })
 })

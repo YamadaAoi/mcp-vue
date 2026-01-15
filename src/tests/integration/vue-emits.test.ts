@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { parseVue } from '../../services/ast/vue/vueParser'
 
 describe('MCP Code Parser - Vue Emits Extraction', () => {
-  describe('Composition API - defineEmits', () => {
+  describe('Vue 3 Composition API - defineEmits', () => {
     it('should extract emits from defineEmits with array syntax', () => {
       const code = `
 <script setup lang="ts">
@@ -69,8 +69,89 @@ const emit = defineEmits<{
     })
   })
 
-  describe('Options API - emits property', () => {
-    it('should extract emits from Options API with array syntax', () => {
+  describe('Vue 3 Options API - emits property', () => {
+    it('should extract emits from Vue 3 Options API with array syntax', () => {
+      const code = `
+<script>
+import { defineComponent } from 'vue'
+
+export default defineComponent({
+  emits: ['update', 'submit', 'cancel'],
+  methods: {
+    handleSubmit() {
+      this.$emit('submit')
+    }
+  }
+})
+</script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.optionsAPI?.emits).toBeDefined()
+      expect(result.optionsAPI?.emits).toHaveLength(3)
+
+      const emitNames = result.optionsAPI?.emits?.map(e => e.name)
+      expect(emitNames).toContain('update')
+      expect(emitNames).toContain('submit')
+      expect(emitNames).toContain('cancel')
+    })
+
+    it('should extract emits from Vue 3 Options API with object syntax', () => {
+      const code = `
+<script>
+import { defineComponent } from 'vue'
+
+export default defineComponent({
+  emits: {
+    update: null,
+    submit: null,
+    cancel: null
+  },
+  methods: {
+    handleSubmit() {
+      this.$emit('submit')
+    }
+  }
+})
+</script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.optionsAPI?.emits).toBeDefined()
+      expect(result.optionsAPI?.emits).toHaveLength(3)
+
+      const emitNames = result.optionsAPI?.emits?.map(e => e.name)
+      expect(emitNames).toContain('update')
+      expect(emitNames).toContain('submit')
+      expect(emitNames).toContain('cancel')
+    })
+
+    it('should extract emits from Vue 3 Options API with string literal keys', () => {
+      const code = `
+<script>
+import { defineComponent } from 'vue'
+
+export default defineComponent({
+  emits: {
+    'update:modelValue': null,
+    'submit-form': null
+  }
+})
+</script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.optionsAPI?.emits).toBeDefined()
+      expect(result.optionsAPI?.emits).toHaveLength(2)
+
+      const emitNames = result.optionsAPI?.emits?.map(e => e.name)
+      expect(emitNames).toContain('update:modelValue')
+      expect(emitNames).toContain('submit-form')
+    })
+  })
+
+  describe('Vue 2 Options API - emits property', () => {
+    it('should extract emits from Vue 2 Options API with array syntax', () => {
       const code = `
 <script>
 export default {
@@ -94,7 +175,7 @@ export default {
       expect(emitNames).toContain('cancel')
     })
 
-    it('should extract emits from Options API with object syntax', () => {
+    it('should extract emits from Vue 2 Options API with object syntax', () => {
       const code = `
 <script>
 export default {
@@ -122,30 +203,25 @@ export default {
       expect(emitNames).toContain('cancel')
     })
 
-    it('should extract emits from defineComponent with emits', () => {
+    it('should extract emits from Vue 2 Options API with string literal keys', () => {
       const code = `
 <script>
-import { defineComponent } from 'vue'
-
-export default defineComponent({
-  emits: ['update', 'submit', 'cancel'],
-  methods: {
-    handleSubmit() {
-      this.$emit('submit')
-    }
+export default {
+  emits: {
+    'update:modelValue': null,
+    'submit-form': null
   }
-})
+}
 </script>
       `
       const result = parseVue(code, 'test.vue')
 
       expect(result.optionsAPI?.emits).toBeDefined()
-      expect(result.optionsAPI?.emits).toHaveLength(3)
+      expect(result.optionsAPI?.emits).toHaveLength(2)
 
       const emitNames = result.optionsAPI?.emits?.map(e => e.name)
-      expect(emitNames).toContain('update')
-      expect(emitNames).toContain('submit')
-      expect(emitNames).toContain('cancel')
+      expect(emitNames).toContain('update:modelValue')
+      expect(emitNames).toContain('submit-form')
     })
   })
 
@@ -187,27 +263,6 @@ const count = ref(0)
       const result = parseVue(code, 'test.vue')
 
       expect(result.compositionAPI?.emits).toBeUndefined()
-    })
-
-    it('should extract emit with string literal keys', () => {
-      const code = `
-<script>
-export default {
-  emits: {
-    'update:modelValue': null,
-    'submit-form': null
-  }
-}
-</script>
-      `
-      const result = parseVue(code, 'test.vue')
-
-      expect(result.optionsAPI?.emits).toBeDefined()
-      expect(result.optionsAPI?.emits).toHaveLength(2)
-
-      const emitNames = result.optionsAPI?.emits?.map(e => e.name)
-      expect(emitNames).toContain('update:modelValue')
-      expect(emitNames).toContain('submit-form')
     })
   })
 })
