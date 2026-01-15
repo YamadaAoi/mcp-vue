@@ -17,7 +17,8 @@ import type {
   PatternLike,
   TSQualifiedName,
   CallExpression,
-  TSType
+  TSType,
+  VoidPattern
 } from '@babel/types'
 import type { VueMethodInfo } from '../types'
 import { getPositionFromNode } from './importExtractor'
@@ -455,7 +456,7 @@ function parseFunctionParameters(
     | ArrayPattern
     | RestElement
     | AssignmentPattern
-    | { type: 'VoidPattern' }
+    | VoidPattern
   >
 ): string[] {
   const parameters: string[] = []
@@ -482,20 +483,58 @@ function getFunctionReturnType(
     | FunctionDeclaration
     | ObjectMethod
 ): string | undefined {
-  if (
-    funcExpr.type === 'FunctionDeclaration' ||
-    funcExpr.type === 'FunctionExpression' ||
-    funcExpr.type === 'ObjectMethod'
-  ) {
-    if (funcExpr.returnType) {
-      return parseTypeAnnotation(funcExpr.returnType)
+  return funcExpr.returnType
+    ? parseTypeAnnotation(funcExpr.returnType)
+    : undefined
+}
+
+/**
+ * 处理可能包含函数的语句
+ * @param stmt 语句
+ * @param methods 方法数组
+ */
+function processStatement(stmt: Statement, methods: VueMethodInfo[]): void {
+  if (stmt.type === 'FunctionDeclaration') {
+    extractFunctionInfo(stmt, methods)
+  } else if (stmt.type === 'VariableDeclaration') {
+    for (const declarator of stmt.declarations) {
+      if (
+        declarator.init &&
+        (declarator.init.type === 'FunctionExpression' ||
+          declarator.init.type === 'ArrowFunctionExpression') &&
+        declarator.id.type === 'Identifier'
+      ) {
+        extractFunctionInfo(declarator.init, methods, declarator.id.name)
+      }
     }
-  } else if (funcExpr.type === 'ArrowFunctionExpression') {
-    if (funcExpr.returnType) {
-      return parseTypeAnnotation(funcExpr.returnType)
+  } else if (stmt.type === 'IfStatement') {
+    if (stmt.consequent) {
+      extractFunctionsFromBlock(stmt.consequent, methods)
+    }
+    if (stmt.alternate) {
+      extractFunctionsFromBlock(stmt.alternate, methods)
+    }
+  } else if (
+    stmt.type === 'ForStatement' ||
+    stmt.type === 'ForInStatement' ||
+    stmt.type === 'ForOfStatement' ||
+    stmt.type === 'WhileStatement' ||
+    stmt.type === 'DoWhileStatement'
+  ) {
+    if (stmt.body) {
+      extractFunctionsFromBlock(stmt.body, methods)
+    }
+  } else if (stmt.type === 'TryStatement') {
+    if (stmt.block) {
+      extractFunctionsFromBlock(stmt.block, methods)
+    }
+    if (stmt.handler) {
+      extractFunctionsFromBlock(stmt.handler.body, methods)
+    }
+    if (stmt.finalizer) {
+      extractFunctionsFromBlock(stmt.finalizer, methods)
     }
   }
-  return undefined
 }
 
 /**
@@ -507,59 +546,13 @@ function extractFunctionsFromBlock(
   blockStatement: BlockStatement | Statement,
   methods: VueMethodInfo[]
 ): void {
-  // 确保blockStatement有body属性（BlockStatement类型）
   if (
     blockStatement &&
     blockStatement.type === 'BlockStatement' &&
     blockStatement.body
   ) {
     for (const stmt of blockStatement.body) {
-      // 处理函数声明
-      if (stmt.type === 'FunctionDeclaration') {
-        extractFunctionInfo(stmt, methods)
-      }
-      // 处理变量声明中的函数表达式
-      else if (stmt.type === 'VariableDeclaration') {
-        for (const declarator of stmt.declarations) {
-          if (
-            declarator.init &&
-            (declarator.init.type === 'FunctionExpression' ||
-              declarator.init.type === 'ArrowFunctionExpression') &&
-            declarator.id.type === 'Identifier'
-          ) {
-            extractFunctionInfo(declarator.init, methods, declarator.id.name)
-          }
-        }
-      }
-      // 递归处理嵌套的代码块（例如if语句、for循环等）
-      else if (stmt.type === 'IfStatement') {
-        if (stmt.consequent) {
-          extractFunctionsFromBlock(stmt.consequent, methods)
-        }
-        if (stmt.alternate) {
-          extractFunctionsFromBlock(stmt.alternate, methods)
-        }
-      } else if (
-        stmt.type === 'ForStatement' ||
-        stmt.type === 'ForInStatement' ||
-        stmt.type === 'ForOfStatement' ||
-        stmt.type === 'WhileStatement' ||
-        stmt.type === 'DoWhileStatement'
-      ) {
-        if (stmt.body) {
-          extractFunctionsFromBlock(stmt.body, methods)
-        }
-      } else if (stmt.type === 'TryStatement') {
-        if (stmt.block) {
-          extractFunctionsFromBlock(stmt.block, methods)
-        }
-        if (stmt.handler) {
-          extractFunctionsFromBlock(stmt.handler.body, methods)
-        }
-        if (stmt.finalizer) {
-          extractFunctionsFromBlock(stmt.finalizer, methods)
-        }
-      }
+      processStatement(stmt, methods)
     }
   }
 }
