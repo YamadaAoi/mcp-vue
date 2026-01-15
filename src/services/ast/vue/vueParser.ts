@@ -19,6 +19,7 @@ import {
 import { extractImports } from './extractors/importExtractor'
 import { extractMethods } from './extractors/methodExtractor'
 import { extractProps } from './extractors/propExtractor'
+import { extractEmits } from './extractors/emitExtractor'
 
 const logger = getLogger()
 
@@ -41,43 +42,55 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       compiledScript.scriptSetupAst || compiledScript.scriptAst
 
     if (ast) {
-      // 提取各个部分的信息
       const imports = extractImports(ast)
       const methods = extractMethods(ast)
       const props = extractProps(ast)
+      const emits = extractEmits(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
         `Parsed Vue 2 component ${filename} in ${parseTime.toFixed(2)}ms`,
         {
           imports: imports.length,
           methods: methods.length,
-          props: props.length
+          props: props.length,
+          emits: emits.length
         }
       )
 
-      // 检测是否是Vue 2.7 Composition API组件（包含setup函数）
       const isCompositionAPI = Array.isArray(ast) && hasSetupFunction(ast)
 
-      // 返回解析结果
       const result: VueParseResult = {
         language: 'vue'
       }
 
       if (isCompositionAPI) {
-        // Vue 2.7 Composition API组件
-        result.compositionAPI = {
+        const compositionData: {
+          methods: typeof methods
+          props: typeof props
+          emits?: typeof emits
+        } = {
           methods,
           props
         }
+        if (emits.length > 0) {
+          compositionData.emits = emits
+        }
+        result.compositionAPI = compositionData
       } else {
-        // Vue 2 Options API组件
-        result.optionsAPI = {
+        const optionsData: {
+          methods: typeof methods
+          props: typeof props
+          emits?: typeof emits
+        } = {
           methods,
           props
         }
+        if (emits.length > 0) {
+          optionsData.emits = emits
+        }
+        result.optionsAPI = optionsData
       }
 
-      // 只有当有导入时才包含imports字段
       if (imports.length > 0) {
         result.imports = imports
       }
@@ -117,43 +130,55 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
     const ast = compiledScript.scriptSetupAst || compiledScript.scriptAst
 
     if (ast) {
-      // 提取各个部分的信息
       const imports = extractImports(ast)
       const methods = extractMethods(ast)
       const props = extractProps(ast)
+      const emits = extractEmits(ast)
       const duration = performance.now() - startTime
       logger.debug(
         `Parsed Vue 3 component ${filename} in ${duration.toFixed(2)}ms`,
         {
           imports: imports.length,
           methods: methods.length,
-          props: props.length
+          props: props.length,
+          emits: emits.length
         }
       )
 
-      // 检测是否是Vue 3 Options API组件
       const isOptionsAPI = Array.isArray(ast) && isOptionsAPIComponent(ast)
 
-      // 返回解析结果
       const result: VueParseResult = {
         language: 'vue'
       }
 
       if (isOptionsAPI) {
-        // Vue 3 Options API组件
-        result.optionsAPI = {
+        const optionsData: {
+          methods: typeof methods
+          props: typeof props
+          emits?: typeof emits
+        } = {
           methods,
           props
         }
+        if (emits.length > 0) {
+          optionsData.emits = emits
+        }
+        result.optionsAPI = optionsData
       } else {
-        // Vue 3 Composition API组件
-        result.compositionAPI = {
+        const compositionData: {
+          methods: typeof methods
+          props: typeof props
+          emits?: typeof emits
+        } = {
           methods,
           props
         }
+        if (emits.length > 0) {
+          compositionData.emits = emits
+        }
+        result.compositionAPI = compositionData
       }
 
-      // 只有当有导入时才包含imports字段
       if (imports.length > 0) {
         result.imports = imports
       }
