@@ -43,13 +43,13 @@ export default {
     }
   },
   // Vue 3 lifecycle hooks
-  onMounted() {
+  mounted() {
     console.log('Component mounted')
   },
-  onUnmounted() {
+  unmounted() {
     console.log('Component unmounted')
   },
-  onUpdated() {
+  updated() {
     console.log('Component updated')
   }
 }

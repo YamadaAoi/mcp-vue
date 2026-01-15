@@ -20,6 +20,7 @@ import { extractImports } from './extractors/importExtractor'
 import { extractMethods } from './extractors/methodExtractor'
 import { extractProps } from './extractors/propExtractor'
 import { extractEmits } from './extractors/emitExtractor'
+import { extractLifecycleHooks } from './extractors/lifecycleExtractor'
 
 const logger = getLogger()
 
@@ -46,6 +47,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       const methods = extractMethods(ast)
       const props = extractProps(ast)
       const emits = extractEmits(ast)
+      const lifecycleHooks = extractLifecycleHooks(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
         `Parsed Vue 2 component ${filename} in ${parseTime.toFixed(2)}ms`,
@@ -53,7 +55,8 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           imports: imports.length,
           methods: methods.length,
           props: props.length,
-          emits: emits.length
+          emits: emits.length,
+          lifecycleHooks: lifecycleHooks.length
         }
       )
 
@@ -68,6 +71,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           methods: typeof methods
           props: typeof props
           emits?: typeof emits
+          lifecycleHooks?: typeof lifecycleHooks
         } = {
           methods,
           props
@@ -75,18 +79,25 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         if (emits.length > 0) {
           compositionData.emits = emits
         }
+        if (lifecycleHooks.length > 0) {
+          compositionData.lifecycleHooks = lifecycleHooks
+        }
         result.compositionAPI = compositionData
       } else {
         const optionsData: {
           methods: typeof methods
           props: typeof props
           emits?: typeof emits
+          lifecycleHooks?: typeof lifecycleHooks
         } = {
           methods,
           props
         }
         if (emits.length > 0) {
           optionsData.emits = emits
+        }
+        if (lifecycleHooks.length > 0) {
+          optionsData.lifecycleHooks = lifecycleHooks
         }
         result.optionsAPI = optionsData
       }
@@ -134,6 +145,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
       const methods = extractMethods(ast)
       const props = extractProps(ast)
       const emits = extractEmits(ast)
+      const lifecycleHooks = extractLifecycleHooks(ast)
       const duration = performance.now() - startTime
       logger.debug(
         `Parsed Vue 3 component ${filename} in ${duration.toFixed(2)}ms`,
@@ -141,7 +153,8 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           imports: imports.length,
           methods: methods.length,
           props: props.length,
-          emits: emits.length
+          emits: emits.length,
+          lifecycleHooks: lifecycleHooks.length
         }
       )
 
@@ -156,6 +169,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           methods: typeof methods
           props: typeof props
           emits?: typeof emits
+          lifecycleHooks?: typeof lifecycleHooks
         } = {
           methods,
           props
@@ -163,18 +177,25 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         if (emits.length > 0) {
           optionsData.emits = emits
         }
+        if (lifecycleHooks.length > 0) {
+          optionsData.lifecycleHooks = lifecycleHooks
+        }
         result.optionsAPI = optionsData
       } else {
         const compositionData: {
           methods: typeof methods
           props: typeof props
           emits?: typeof emits
+          lifecycleHooks?: typeof lifecycleHooks
         } = {
           methods,
           props
         }
         if (emits.length > 0) {
           compositionData.emits = emits
+        }
+        if (lifecycleHooks.length > 0) {
+          compositionData.lifecycleHooks = lifecycleHooks
         }
         result.compositionAPI = compositionData
       }
