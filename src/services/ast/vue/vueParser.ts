@@ -21,6 +21,10 @@ import { extractMethods } from './extractors/methodExtractor'
 import { extractProps } from './extractors/propExtractor'
 import { extractEmits } from './extractors/emitExtractor'
 import { extractLifecycleHooks } from './extractors/lifecycleExtractor'
+import {
+  extractVariables,
+  extractDataProperties
+} from './extractors/variableExtractor'
 
 const logger = getLogger()
 
@@ -48,6 +52,8 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       const props = extractProps(ast)
       const emits = extractEmits(ast)
       const lifecycleHooks = extractLifecycleHooks(ast)
+      const variables = extractVariables(ast)
+      const dataProperties = extractDataProperties(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
         `Parsed Vue 2 component ${filename} in ${parseTime.toFixed(2)}ms`,
@@ -56,7 +62,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           methods: methods.length,
           props: props.length,
           emits: emits.length,
-          lifecycleHooks: lifecycleHooks.length
+          lifecycleHooks: lifecycleHooks.length,
+          variables: variables.length,
+          dataProperties: dataProperties.length
         }
       )
 
@@ -72,6 +80,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           props: typeof props
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
+          variables?: typeof variables
         } = {
           methods,
           props
@@ -82,6 +91,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         if (lifecycleHooks.length > 0) {
           compositionData.lifecycleHooks = lifecycleHooks
         }
+        if (variables.length > 0) {
+          compositionData.variables = variables
+        }
         result.compositionAPI = compositionData
       } else {
         const optionsData: {
@@ -89,6 +101,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           props: typeof props
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
+          dataProperties?: typeof dataProperties
         } = {
           methods,
           props
@@ -98,6 +111,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         }
         if (lifecycleHooks.length > 0) {
           optionsData.lifecycleHooks = lifecycleHooks
+        }
+        if (dataProperties.length > 0) {
+          optionsData.dataProperties = dataProperties
         }
         result.optionsAPI = optionsData
       }
@@ -146,6 +162,8 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
       const props = extractProps(ast)
       const emits = extractEmits(ast)
       const lifecycleHooks = extractLifecycleHooks(ast)
+      const variables = extractVariables(ast)
+      const dataProperties = extractDataProperties(ast)
       const duration = performance.now() - startTime
       logger.debug(
         `Parsed Vue 3 component ${filename} in ${duration.toFixed(2)}ms`,
@@ -154,7 +172,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           methods: methods.length,
           props: props.length,
           emits: emits.length,
-          lifecycleHooks: lifecycleHooks.length
+          lifecycleHooks: lifecycleHooks.length,
+          variables: variables.length,
+          dataProperties: dataProperties.length
         }
       )
 
@@ -170,6 +190,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           props: typeof props
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
+          dataProperties?: typeof dataProperties
         } = {
           methods,
           props
@@ -180,6 +201,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         if (lifecycleHooks.length > 0) {
           optionsData.lifecycleHooks = lifecycleHooks
         }
+        if (dataProperties.length > 0) {
+          optionsData.dataProperties = dataProperties
+        }
         result.optionsAPI = optionsData
       } else {
         const compositionData: {
@@ -187,6 +211,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           props: typeof props
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
+          variables?: typeof variables
         } = {
           methods,
           props
@@ -196,6 +221,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         }
         if (lifecycleHooks.length > 0) {
           compositionData.lifecycleHooks = lifecycleHooks
+        }
+        if (variables.length > 0) {
+          compositionData.variables = variables
         }
         result.compositionAPI = compositionData
       }
