@@ -16,13 +16,28 @@ import type {
   VoidPattern,
   Noop,
   SpreadElement,
-  ObjectExpression
+  ObjectExpression,
+  ArgumentPlaceholder
 } from '@babel/types'
-import type { VariableInfo, DataPropertyInfo } from '../types'
+import type {
+  VariableInfo,
+  DataPropertyInfo,
+  RefInfo,
+  ReactiveInfo
+} from '../types'
 import { getPositionFromNode } from './importExtractor'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
+
+const REACTIVE_FUNCTIONS = [
+  'reactive',
+  'shallowReactive',
+  'readonly',
+  'shallowReadonly'
+]
+
+const REF_FUNCTIONS = ['ref', 'shallowRef', 'toRef', 'toRefs']
 
 function getEndPositionFromNode(node: Node): {
   row: number
@@ -67,6 +82,108 @@ function extractVariableName(id: LVal | VoidPattern): string | null {
   }
 }
 
+// Helper function to check if a variable is a ref function call
+function isRef(declarator: VariableDeclarator): boolean {
+  if (!declarator.init || declarator.init.type !== 'CallExpression') {
+    return false
+  }
+
+  const callExpression = declarator.init
+  if (callExpression.callee.type !== 'Identifier') {
+    return false
+  }
+
+  const funcName = callExpression.callee.name
+  return REF_FUNCTIONS.includes(funcName)
+}
+
+// Helper function to check if a variable is a reactive function call
+function isReactive(declarator: VariableDeclarator): boolean {
+  if (!declarator.init || declarator.init.type !== 'CallExpression') {
+    return false
+  }
+
+  const callExpression = declarator.init
+  if (callExpression.callee.type !== 'Identifier') {
+    return false
+  }
+
+  const funcName = callExpression.callee.name
+  return REACTIVE_FUNCTIONS.includes(funcName)
+}
+
+// Helper function to check if a variable is a ref or reactive function call
+function isRefOrReactive(declarator: VariableDeclarator): boolean {
+  return isRef(declarator) || isReactive(declarator)
+}
+
+// Generic function to process setup functions in component declarations
+function processSetupFunction<T>(
+  stmt: Statement,
+  processor: (stmt: Statement) => T[]
+): T[] {
+  const results: T[] = []
+
+  // Process export default declarations
+  if (stmt.type === 'ExportDefaultDeclaration') {
+    const declaration = stmt.declaration
+
+    let componentOptions: ObjectExpression | null = null
+
+    // Handle defineComponent calls
+    if (
+      declaration.type === 'CallExpression' &&
+      declaration.callee.type === 'Identifier' &&
+      declaration.callee.name === 'defineComponent'
+    ) {
+      const args = declaration.arguments
+      if (args.length > 0 && args[0].type === 'ObjectExpression') {
+        componentOptions = args[0]
+      }
+    }
+    // Handle direct object expressions
+    else if (declaration.type === 'ObjectExpression') {
+      componentOptions = declaration
+    }
+
+    // Process setup function if found
+    if (componentOptions) {
+      for (const prop of componentOptions.properties) {
+        if (
+          (prop.type === 'ObjectProperty' || prop.type === 'ObjectMethod') &&
+          'key' in prop
+        ) {
+          const key = prop.key
+          const isSetup =
+            (key.type === 'Identifier' && key.name === 'setup') ||
+            (key.type === 'StringLiteral' && key.value === 'setup')
+
+          if (isSetup) {
+            let setupFunction
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.value.type === 'ArrowFunctionExpression'
+            ) {
+              setupFunction = prop.value
+            } else if (prop.type === 'ObjectMethod') {
+              setupFunction = prop
+            }
+
+            if (setupFunction && setupFunction.body.type === 'BlockStatement') {
+              for (const setupStmt of setupFunction.body.body) {
+                const nestedResults = processor(setupStmt)
+                results.push(...nestedResults)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return results
+}
+
 function processVariableDeclarator(
   declarator: VariableDeclarator,
   isConst: boolean
@@ -75,6 +192,11 @@ function processVariableDeclarator(
   const name = extractVariableName(id)
 
   if (!name) {
+    return null
+  }
+
+  // Skip ref and reactive variables as they are handled by refExtractor
+  if (isRefOrReactive(declarator)) {
     return null
   }
 
@@ -116,7 +238,31 @@ function parseTypeAnnotation(
     return 'flow-type'
   }
 
-  return extractTypeString(typeAnnotation as TSType)
+  // 处理 TSType 类型
+  switch (typeAnnotation.type) {
+    case 'TSStringKeyword':
+    case 'TSNumberKeyword':
+    case 'TSBooleanKeyword':
+    case 'TSVoidKeyword':
+    case 'TSAnyKeyword':
+    case 'TSUnknownKeyword':
+    case 'TSNullKeyword':
+    case 'TSUndefinedKeyword':
+    case 'TSArrayType':
+    case 'TSTupleType':
+    case 'TSUnionType':
+    case 'TSIntersectionType':
+    case 'TSTypeLiteral':
+    case 'TSFunctionType':
+    case 'TSParenthesizedType':
+    case 'TSTypeReference':
+    case 'TSLiteralType':
+    case 'TSInferType':
+    case 'TSConditionalType':
+      return extractTypeString(typeAnnotation)
+    default:
+      return undefined
+  }
 }
 
 function extractTypeString(type: TSType): string {
@@ -174,13 +320,14 @@ function extractTypeString(type: TSType): string {
   }
 }
 
-function extractInitialValue(
+export function extractInitialValue(
   init:
     | Expression
     | Pattern
     | PatternLike
     | RestElement
     | SpreadElement
+    | ArgumentPlaceholder
     | null
     | undefined
 ): unknown {
@@ -352,9 +499,8 @@ function extractDataPropertiesFromStatement(
         bodyStmt.argument &&
         bodyStmt.argument.type === 'ObjectExpression'
       ) {
-        const returnStmt = bodyStmt
-        const objectExpr = returnStmt.argument as ObjectExpression
-        for (const prop of objectExpr.properties) {
+        // 由于已经检查了类型，TypeScript 应该能正确推断 bodyStmt.argument 是 ObjectExpression 类型
+        for (const prop of bodyStmt.argument.properties) {
           if (
             prop.type === 'ObjectProperty' &&
             prop.key.type === 'Identifier'
@@ -408,6 +554,198 @@ export function extractVariables(ast: Statement[]): VariableInfo[] {
 
   logger.debug(`Extracted ${variables.length} variables`)
   return variables
+}
+
+function extractRefFromDeclarator(
+  declarator: VariableDeclarator
+): RefInfo | null {
+  // Check if it's an identifier
+  if (declarator.id.type !== 'Identifier') {
+    return null
+  }
+
+  // Check if it's a ref function call
+  if (
+    !declarator.init ||
+    declarator.init.type !== 'CallExpression' ||
+    declarator.init.callee.type !== 'Identifier'
+  ) {
+    return null
+  }
+
+  const callee = declarator.init.callee
+  const funcName = callee.name
+
+  if (!REF_FUNCTIONS.includes(funcName)) {
+    return null
+  }
+
+  // Extract ref name
+  const name = declarator.id.name
+
+  // Extract type annotation if available
+  let type: string | undefined = undefined
+  if ('typeAnnotation' in declarator.id && declarator.id.typeAnnotation) {
+    type = parseTypeAnnotation(declarator.id.typeAnnotation)
+  }
+
+  // Extract initial value
+  const initialValue =
+    declarator.init.arguments.length > 0
+      ? extractInitialValue(declarator.init.arguments[0])
+      : undefined
+
+  // Check if it's a shallow ref
+  const isShallow = funcName === 'shallowRef'
+
+  return {
+    name,
+    type,
+    initialValue,
+    isShallow,
+    startPosition: getPositionFromNode(declarator),
+    endPosition: getEndPositionFromNode(declarator)
+  }
+}
+
+function extractReactiveFromDeclarator(
+  declarator: VariableDeclarator
+): ReactiveInfo | null {
+  // Check if it's an identifier
+  if (declarator.id.type !== 'Identifier') {
+    return null
+  }
+
+  // Check if it's a reactive function call
+  if (
+    !declarator.init ||
+    declarator.init.type !== 'CallExpression' ||
+    declarator.init.callee.type !== 'Identifier'
+  ) {
+    return null
+  }
+
+  const callee = declarator.init.callee
+  const funcName = callee.name
+
+  if (!REACTIVE_FUNCTIONS.includes(funcName)) {
+    return null
+  }
+
+  // Extract reactive name
+  const name = declarator.id.name
+
+  // Extract type annotation if available
+  let type: string | undefined = undefined
+  if ('typeAnnotation' in declarator.id && declarator.id.typeAnnotation) {
+    type = parseTypeAnnotation(declarator.id.typeAnnotation)
+  }
+
+  // Extract initial value
+  const initialValue =
+    declarator.init.arguments.length > 0
+      ? extractInitialValue(declarator.init.arguments[0])
+      : undefined
+
+  // Check if it's a shallow reactive
+  const isShallow =
+    funcName === 'shallowReactive' || funcName === 'shallowReadonly'
+
+  return {
+    name,
+    type,
+    initialValue,
+    isShallow,
+    startPosition: getPositionFromNode(declarator),
+    endPosition: getEndPositionFromNode(declarator)
+  }
+}
+
+function extractRefsFromStatement(stmt: Statement): RefInfo[] {
+  const refs: RefInfo[] = []
+
+  // Process variable declarations
+  if (stmt.type === 'VariableDeclaration') {
+    for (const declarator of stmt.declarations) {
+      const ref = extractRefFromDeclarator(declarator)
+      if (ref) {
+        refs.push(ref)
+      }
+    }
+  }
+  // Process function bodies
+  else if (stmt.type === 'FunctionDeclaration') {
+    if (stmt.body.type === 'BlockStatement') {
+      for (const bodyStmt of stmt.body.body) {
+        const nestedRefs = extractRefsFromStatement(bodyStmt)
+        refs.push(...nestedRefs)
+      }
+    }
+  }
+  // Process setup functions in component declarations
+  else {
+    const setupRefs = processSetupFunction(stmt, extractRefsFromStatement)
+    refs.push(...setupRefs)
+  }
+
+  return refs
+}
+
+function extractReactiveFromStatement(stmt: Statement): ReactiveInfo[] {
+  const reactives: ReactiveInfo[] = []
+
+  // Process variable declarations
+  if (stmt.type === 'VariableDeclaration') {
+    for (const declarator of stmt.declarations) {
+      const reactive = extractReactiveFromDeclarator(declarator)
+      if (reactive) {
+        reactives.push(reactive)
+      }
+    }
+  }
+  // Process function bodies
+  else if (stmt.type === 'FunctionDeclaration') {
+    if (stmt.body.type === 'BlockStatement') {
+      for (const bodyStmt of stmt.body.body) {
+        const nestedReactive = extractReactiveFromStatement(bodyStmt)
+        reactives.push(...nestedReactive)
+      }
+    }
+  }
+  // Process setup functions in component declarations
+  else {
+    const setupReactive = processSetupFunction(
+      stmt,
+      extractReactiveFromStatement
+    )
+    reactives.push(...setupReactive)
+  }
+
+  return reactives
+}
+
+export function extractRefs(ast: Statement[]): RefInfo[] {
+  const refs: RefInfo[] = []
+
+  for (const stmt of ast) {
+    const extractedRefs = extractRefsFromStatement(stmt)
+    refs.push(...extractedRefs)
+  }
+
+  logger.debug(`Extracted ${refs.length} refs`)
+  return refs
+}
+
+export function extractReactive(ast: Statement[]): ReactiveInfo[] {
+  const reactives: ReactiveInfo[] = []
+
+  for (const stmt of ast) {
+    const extractedReactive = extractReactiveFromStatement(stmt)
+    reactives.push(...extractedReactive)
+  }
+
+  logger.debug(`Extracted ${reactives.length} reactive objects`)
+  return reactives
 }
 
 export function extractDataProperties(ast: Statement[]): DataPropertyInfo[] {

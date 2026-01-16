@@ -141,20 +141,39 @@ export function hasSetupFunction(ast: Statement[]): boolean {
     node => node.type === 'ExportDefaultDeclaration'
   )
 
-  if (
-    !exportDefaultNode ||
-    exportDefaultNode.declaration.type !== 'ObjectExpression'
-  ) {
+  if (!exportDefaultNode) {
     return false
   }
 
-  const objExpr = exportDefaultNode.declaration
-  return objExpr.properties.some(prop => {
+  let componentOptions: ObjectExpression | null = null
+
+  if (exportDefaultNode.declaration.type === 'ObjectExpression') {
+    componentOptions = exportDefaultNode.declaration
+  } else if (exportDefaultNode.declaration.type === 'CallExpression') {
+    const callExpr = exportDefaultNode.declaration
+    if (
+      callExpr.callee.type === 'Identifier' &&
+      callExpr.callee.name === 'defineComponent' &&
+      callExpr.arguments.length > 0 &&
+      callExpr.arguments[0].type === 'ObjectExpression'
+    ) {
+      componentOptions = callExpr.arguments[0]
+    }
+  }
+
+  if (!componentOptions) {
+    return false
+  }
+
+  return componentOptions.properties.some(prop => {
     if (prop.type !== 'ObjectProperty' && prop.type !== 'ObjectMethod')
       return false
 
-    if (!prop.key || prop.key.type !== 'Identifier') return false
-
-    return prop.key.name === 'setup'
+    if (!('key' in prop)) return false
+    const key = prop.key
+    return (
+      (key.type === 'Identifier' && key.name === 'setup') ||
+      (key.type === 'StringLiteral' && key.value === 'setup')
+    )
   })
 }

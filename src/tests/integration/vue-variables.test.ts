@@ -32,6 +32,19 @@ describe('MCP Code Parser - Vue Variables Extraction', () => {
     it('should extract variables from Vue 2 Composition API component', () => {
       const result = parseVue(vue2Composition.vue27Composition, 'test.vue')
 
+      // Check refs
+      expect(result.compositionAPI?.refs).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.refs)).toBe(true)
+      expect(result.compositionAPI?.refs?.length).toBeGreaterThan(0)
+
+      const refs = result.compositionAPI?.refs || []
+      const refNames = refs.map(r => r.name)
+
+      expect(refNames).toContain('count')
+      expect(refNames).toContain('message')
+      expect(refNames).toContain('isActive')
+
+      // Check variables
       expect(result.compositionAPI?.variables).toBeDefined()
       expect(Array.isArray(result.compositionAPI?.variables)).toBe(true)
       expect(result.compositionAPI?.variables?.length).toBeGreaterThan(0)
@@ -39,9 +52,6 @@ describe('MCP Code Parser - Vue Variables Extraction', () => {
       const variables = result.compositionAPI?.variables || []
       const variableNames = variables.map(v => v.name)
 
-      expect(variableNames).toContain('count')
-      expect(variableNames).toContain('message')
-      expect(variableNames).toContain('isActive')
       expect(variableNames).toContain('doubledCount')
       expect(variableNames).toContain('fullTitle')
     })
@@ -51,32 +61,42 @@ describe('MCP Code Parser - Vue Variables Extraction', () => {
     it('should extract variables from Vue 3 Composition API component with defaults', () => {
       const result = parseVue(vue3Composition.vueSetupScript, 'test.vue')
 
+      // Check refs
+      expect(result.compositionAPI?.refs).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.refs)).toBe(true)
+      expect(result.compositionAPI?.refs?.length).toBeGreaterThan(0)
+
+      const refs = result.compositionAPI?.refs || []
+      const refNames = refs.map(r => r.name)
+
+      expect(refNames).toContain('count')
+      expect(refNames).toContain('message')
+      expect(refNames).toContain('isLoading')
+      expect(refNames).toContain('user')
+
+      // Check variables
       expect(result.compositionAPI?.variables).toBeDefined()
       expect(Array.isArray(result.compositionAPI?.variables)).toBe(true)
       expect(result.compositionAPI?.variables?.length).toBeGreaterThan(0)
-
-      const variables = result.compositionAPI?.variables || []
-      const variableNames = variables.map(v => v.name)
-
-      expect(variableNames).toContain('count')
-      expect(variableNames).toContain('message')
-      expect(variableNames).toContain('isLoading')
-      expect(variableNames).toContain('user')
     })
 
     it('should extract variables from Vue 3 Composition API component with setup function', () => {
       const result = parseVue(vue3Composition.vueSetupFunction, 'test.vue')
 
+      // Check refs
+      expect(result.compositionAPI?.refs).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.refs)).toBe(true)
+
+      const refs = result.compositionAPI?.refs || []
+      const refNames = refs.map(r => r.name)
+
+      expect(refNames).toContain('count')
+      expect(refNames).toContain('isLoading')
+      expect(refNames).toContain('error')
+
+      // Check variables
       expect(result.compositionAPI?.variables).toBeDefined()
       expect(Array.isArray(result.compositionAPI?.variables)).toBe(true)
-      expect(result.compositionAPI?.variables?.length).toBeGreaterThan(0)
-
-      const variables = result.compositionAPI?.variables || []
-      const variableNames = variables.map(v => v.name)
-
-      expect(variableNames).toContain('count')
-      expect(variableNames).toContain('isLoading')
-      expect(variableNames).toContain('error')
     })
   })
 
@@ -93,7 +113,167 @@ describe('MCP Code Parser - Vue Variables Extraction', () => {
 
       expect(result.optionsAPI?.dataProperties).toBeUndefined()
     })
+  })
 
+  describe('Vue 3 Composition API - Ref and Reactive', () => {
+    it('should extract ref variables from Vue 3 Composition API', () => {
+      const code = `
+        <script setup>
+        import { ref } from 'vue'
+        
+        const count = ref(0)
+        const message = ref('Hello')
+        const isActive = ref(true)
+        </script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.compositionAPI?.refs).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.refs)).toBe(true)
+      expect(result.compositionAPI?.refs?.length).toBe(3)
+
+      const refs = result.compositionAPI?.refs || []
+      const refNames = refs.map(r => r.name)
+
+      expect(refNames).toContain('count')
+      expect(refNames).toContain('message')
+      expect(refNames).toContain('isActive')
+
+      const countRef = refs.find(r => r.name === 'count')
+      expect(countRef?.initialValue).toBe(0)
+      expect(countRef?.isShallow).toBe(false)
+    })
+
+    it('should extract reactive objects from Vue 3 Composition API', () => {
+      const code = `
+        <script setup>
+        import { reactive } from 'vue'
+        
+        const user = reactive({
+          name: 'John',
+          age: 30
+        })
+        </script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.compositionAPI?.reactives).toBeDefined()
+      expect(Array.isArray(result.compositionAPI?.reactives)).toBe(true)
+      expect(result.compositionAPI?.reactives?.length).toBe(1)
+
+      const reactives = result.compositionAPI?.reactives || []
+      const userReactive = reactives.find(r => r.name === 'user')
+
+      expect(userReactive?.name).toBe('user')
+      expect(userReactive?.isShallow).toBe(false)
+    })
+
+    it('should extract shallow ref and shallow reactive', () => {
+      const code = `
+        <script setup>
+        import { shallowRef, shallowReactive } from 'vue'
+        
+        const shallowCount = shallowRef(0)
+        const shallowUser = shallowReactive({
+          name: 'John'
+        })
+        </script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.compositionAPI?.refs).toBeDefined()
+      expect(result.compositionAPI?.reactives).toBeDefined()
+
+      const refs = result.compositionAPI?.refs || []
+      const reactives = result.compositionAPI?.reactives || []
+
+      const shallowCount = refs.find(r => r.name === 'shallowCount')
+      expect(shallowCount?.isShallow).toBe(true)
+
+      const shallowUser = reactives.find(r => r.name === 'shallowUser')
+      expect(shallowUser?.isShallow).toBe(true)
+    })
+
+    it('should extract ref and reactive with TypeScript types', () => {
+      const code = `
+        <script setup lang="ts">
+        import { ref, reactive } from 'vue'
+        
+        const count: Ref<number> = ref(0)
+        const user: Reactive<{ name: string }> = reactive({
+          name: 'John'
+        })
+        </script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.compositionAPI?.refs).toBeDefined()
+      expect(result.compositionAPI?.reactives).toBeDefined()
+
+      const refs = result.compositionAPI?.refs || []
+      const reactives = result.compositionAPI?.reactives || []
+
+      const countRef = refs.find(r => r.name === 'count')
+      expect(countRef?.name).toBe('count')
+
+      const userReactive = reactives.find(r => r.name === 'user')
+      expect(userReactive?.name).toBe('user')
+    })
+
+    it('should handle mixed ref and reactive with other variables', () => {
+      const code = `
+        <script setup>
+        import { ref, reactive } from 'vue'
+        
+        const count = ref(0)
+        const user = reactive({ name: 'John' })
+        const message = 'Hello'
+        let isActive = true
+        </script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.compositionAPI?.refs).toBeDefined()
+      expect(result.compositionAPI?.reactives).toBeDefined()
+      expect(result.compositionAPI?.variables).toBeDefined()
+
+      expect(result.compositionAPI?.refs?.length).toBe(1)
+      expect(result.compositionAPI?.reactives?.length).toBe(1)
+      expect(result.compositionAPI?.variables?.length).toBe(2)
+    })
+
+    it('should handle readonly and shallowReadonly', () => {
+      const code = `
+        <script setup>
+        import { readonly, shallowReadonly } from 'vue'
+        
+        const readOnlyUser = readonly({
+          name: 'John'
+        })
+        const shallowReadOnlyUser = shallowReadonly({
+          name: 'Jane'
+        })
+        </script>
+      `
+      const result = parseVue(code, 'test.vue')
+
+      expect(result.compositionAPI?.reactives).toBeDefined()
+      expect(result.compositionAPI?.reactives?.length).toBe(2)
+
+      const reactives = result.compositionAPI?.reactives || []
+      const reactiveNames = reactives.map(r => r.name)
+
+      expect(reactiveNames).toContain('readOnlyUser')
+      expect(reactiveNames).toContain('shallowReadOnlyUser')
+
+      const shallowReadOnlyUser = reactives.find(
+        r => r.name === 'shallowReadOnlyUser'
+      )
+      expect(shallowReadOnlyUser?.isShallow).toBe(true)
+    })
+  })
+
+  describe('Edge cases (continued)', () => {
     it('should extract variable types', () => {
       const code = `
         <script setup>

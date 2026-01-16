@@ -23,7 +23,9 @@ import { extractEmits } from './extractors/emitExtractor'
 import { extractLifecycleHooks } from './extractors/lifecycleExtractor'
 import {
   extractVariables,
-  extractDataProperties
+  extractDataProperties,
+  extractRefs,
+  extractReactive
 } from './extractors/variableExtractor'
 
 const logger = getLogger()
@@ -54,6 +56,8 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       const lifecycleHooks = extractLifecycleHooks(ast)
       const variables = extractVariables(ast)
       const dataProperties = extractDataProperties(ast)
+      const refs = extractRefs(ast)
+      const reactives = extractReactive(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
         `Parsed Vue 2 component ${filename} in ${parseTime.toFixed(2)}ms`,
@@ -81,9 +85,13 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
           variables?: typeof variables
+          refs: typeof refs
+          reactives: typeof reactives
         } = {
           methods,
-          props
+          props,
+          refs,
+          reactives
         }
         if (emits.length > 0) {
           compositionData.emits = emits
@@ -164,6 +172,8 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
       const lifecycleHooks = extractLifecycleHooks(ast)
       const variables = extractVariables(ast)
       const dataProperties = extractDataProperties(ast)
+      const refs = extractRefs(ast)
+      const reactives = extractReactive(ast)
       const duration = performance.now() - startTime
       logger.debug(
         `Parsed Vue 3 component ${filename} in ${duration.toFixed(2)}ms`,
@@ -212,6 +222,8 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
           variables?: typeof variables
+          refs?: typeof refs
+          reactives?: typeof reactives
         } = {
           methods,
           props
@@ -224,6 +236,12 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         }
         if (variables.length > 0) {
           compositionData.variables = variables
+        }
+        if (refs.length > 0) {
+          compositionData.refs = refs
+        }
+        if (reactives.length > 0) {
+          compositionData.reactives = reactives
         }
         result.compositionAPI = compositionData
       }
