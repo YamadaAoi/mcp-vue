@@ -7,7 +7,7 @@ import {
   parseComponent as parseSFCv2,
   compileScript as compileScriptV2
 } from '@vue/compiler-sfc-v2'
-import type { VueParseResult } from './types'
+import type { VueParseResult, ExposeInfo } from './types'
 import { getLogger } from '../../../utils/logger'
 import {
   isVue2OptionsAPI,
@@ -25,7 +25,8 @@ import {
   extractVariables,
   extractDataProperties,
   extractRefs,
-  extractReactive
+  extractReactive,
+  extractExpose
 } from './extractors/variableExtractor'
 
 const logger = getLogger()
@@ -58,6 +59,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       const dataProperties = extractDataProperties(ast)
       const refs = extractRefs(ast)
       const reactives = extractReactive(ast)
+      const expose = extractExpose(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
         `Parsed Vue 2 component ${filename} in ${parseTime.toFixed(2)}ms`,
@@ -87,6 +89,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           variables?: typeof variables
           refs: typeof refs
           reactives: typeof reactives
+          expose?: typeof expose
         } = {
           methods,
           props,
@@ -101,6 +104,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         }
         if (variables.length > 0) {
           compositionData.variables = variables
+        }
+        if (expose.length > 0) {
+          compositionData.expose = expose
         }
         result.compositionAPI = compositionData
       } else {
@@ -174,6 +180,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
       const dataProperties = extractDataProperties(ast)
       const refs = extractRefs(ast)
       const reactives = extractReactive(ast)
+      const expose = extractExpose(ast)
       const duration = performance.now() - startTime
       logger.debug(
         `Parsed Vue 3 component ${filename} in ${duration.toFixed(2)}ms`,
@@ -224,6 +231,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           variables?: typeof variables
           refs?: typeof refs
           reactives?: typeof reactives
+          expose?: ExposeInfo[]
         } = {
           methods,
           props
@@ -242,6 +250,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         }
         if (reactives.length > 0) {
           compositionData.reactives = reactives
+        }
+        if (expose.length > 0) {
+          compositionData.expose = expose
         }
         result.compositionAPI = compositionData
       }
