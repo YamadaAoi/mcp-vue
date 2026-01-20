@@ -15,13 +15,16 @@ import type {
   AssignmentPattern,
   Identifier,
   PatternLike,
-  TSQualifiedName,
-  CallExpression,
   TSType,
   VoidPattern
 } from '@babel/types'
 import type { VueMethodInfo } from '../types'
-import { getPositionFromNode } from './extractUtil'
+import {
+  getPositionFromNode,
+  getIdentifierName,
+  getQualifiedNameName,
+  isDefineComponentCall
+} from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
@@ -29,7 +32,6 @@ const logger = getLogger()
 const UNKNOWN_TYPE = 'unknown'
 const SETUP_FUNCTION_NAME = 'setup'
 const METHODS_PROPERTY_NAME = 'methods'
-const DEFINE_COMPONENT_NAME = 'defineComponent'
 const EXTEND_METHOD_NAME = 'extend'
 const PROPS_PARAM_NAME = 'props'
 const CONTEXT_PARAM_NAME = 'context'
@@ -122,50 +124,6 @@ function parseTypeAnnotation(
     default:
       return UNKNOWN_TYPE
   }
-}
-
-function getQualifiedNameName(
-  qualifiedName: TSQualifiedName | null | undefined
-): string {
-  if (!qualifiedName) {
-    return ''
-  }
-  const leftName =
-    qualifiedName.left.type === 'Identifier'
-      ? getIdentifierName(qualifiedName.left)
-      : getQualifiedNameName(qualifiedName.left)
-  const rightName = getIdentifierName(qualifiedName.right)
-  return rightName ? `${leftName}.${rightName}` : leftName
-}
-
-function getIdentifierName(key: Identifier | null | undefined): string {
-  return key?.name || ''
-}
-
-/**
- * 检查是否为defineComponent调用
- * @param node AST节点
- * @returns 是否为defineComponent调用
- */
-function isDefineComponentCall(
-  node: CallExpression | null | undefined
-): boolean {
-  if (!node) {
-    return false
-  }
-  const callee = node.callee
-  if (!callee) {
-    return false
-  }
-  if (callee.type === 'Identifier') {
-    return callee.name === DEFINE_COMPONENT_NAME
-  } else if (callee.type === 'MemberExpression') {
-    return (
-      callee.property.type === 'Identifier' &&
-      getIdentifierName(callee.property) === DEFINE_COMPONENT_NAME
-    )
-  }
-  return false
 }
 
 /**

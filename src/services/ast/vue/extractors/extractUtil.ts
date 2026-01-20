@@ -7,7 +7,9 @@ import type {
   RestElement,
   AssignmentPattern,
   VoidPattern,
-  LVal
+  LVal,
+  TSQualifiedName,
+  CallExpression
 } from '@babel/types'
 
 export type LocatableNode = {
@@ -149,4 +151,58 @@ export function extractVariableName(id: LVal | VoidPattern): string | null {
     default:
       return null
   }
+}
+
+/**
+ * 获取标识符名称
+ * @param key 标识符节点
+ * @returns 标识符名称
+ */
+export function getIdentifierName(key: Identifier | null | undefined): string {
+  return key?.name || ''
+}
+
+/**
+ * 获取限定名称
+ * @param qualifiedName 限定名称节点
+ * @returns 限定名称字符串
+ */
+export function getQualifiedNameName(
+  qualifiedName: TSQualifiedName | null | undefined
+): string {
+  if (!qualifiedName) {
+    return ''
+  }
+  const leftName =
+    qualifiedName.left.type === 'Identifier'
+      ? getIdentifierName(qualifiedName.left)
+      : getQualifiedNameName(qualifiedName.left)
+  const rightName = getIdentifierName(qualifiedName.right)
+  return rightName ? `${leftName}.${rightName}` : leftName
+}
+
+/**
+ * 检查是否为defineComponent调用
+ * @param node 调用表达式节点
+ * @returns 是否为defineComponent调用
+ */
+export function isDefineComponentCall(
+  node: CallExpression | null | undefined
+): boolean {
+  if (!node) {
+    return false
+  }
+  const callee = node.callee
+  if (!callee) {
+    return false
+  }
+  if (callee.type === 'Identifier') {
+    return callee.name === 'defineComponent'
+  } else if (callee.type === 'MemberExpression') {
+    return (
+      callee.property.type === 'Identifier' &&
+      getIdentifierName(callee.property) === 'defineComponent'
+    )
+  }
+  return false
 }
