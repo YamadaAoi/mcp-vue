@@ -287,11 +287,11 @@ export function parseVue(code: string, filename: string): VueParseResult {
     const isVue2 = isVue2OptionsAPI(code)
     logger.debug(`File ${filename} is Vue 2 component: ${isVue2}`)
 
-    if (isVue2) {
-      return parseVue2Component(code, filename)
-    } else {
-      return parseVue3Component(code, filename)
-    }
+    const result = isVue2
+      ? parseVue2Component(code, filename)
+      : parseVue3Component(code, filename)
+    logger.debug(`Parsed Vue component ${filename}`, result)
+    return result
   } catch (error) {
     logger.error(
       `Failed to parse Vue component ${filename}:`,

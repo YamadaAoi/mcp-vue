@@ -15,116 +15,24 @@ import type {
   AssignmentPattern,
   Identifier,
   PatternLike,
-  TSType,
   VoidPattern
 } from '@babel/types'
 import type { VueMethodInfo } from '../types'
 import {
   getPositionFromNode,
   getIdentifierName,
-  getQualifiedNameName,
-  isDefineComponentCall
+  isDefineComponentCall,
+  parseTypeAnnotation
 } from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
 
-const UNKNOWN_TYPE = 'unknown'
 const SETUP_FUNCTION_NAME = 'setup'
 const METHODS_PROPERTY_NAME = 'methods'
 const EXTEND_METHOD_NAME = 'extend'
 const PROPS_PARAM_NAME = 'props'
 const CONTEXT_PARAM_NAME = 'context'
-const TYPE_LITERAL_PLACEHOLDER = '{ ... }'
-const DEFAULT_PARAM_NAME = 'param'
-
-function wrapTypeAnnotation(type: TSType): TSTypeAnnotation {
-  return { type: 'TSTypeAnnotation', typeAnnotation: type }
-}
-
-function parseTypeAnnotation(
-  typeAnnotation: TSTypeAnnotation | TypeAnnotation | Noop
-): string {
-  if (!typeAnnotation || typeAnnotation.type === 'Noop') {
-    return UNKNOWN_TYPE
-  }
-
-  const type = typeAnnotation.typeAnnotation
-
-  switch (type.type) {
-    case 'TSStringKeyword':
-      return 'string'
-    case 'TSNumberKeyword':
-      return 'number'
-    case 'TSBooleanKeyword':
-      return 'boolean'
-    case 'TSAnyKeyword':
-      return 'any'
-    case 'TSUnknownKeyword':
-      return UNKNOWN_TYPE
-    case 'TSVoidKeyword':
-      return 'void'
-    case 'TSNullKeyword':
-      return 'null'
-    case 'TSUndefinedKeyword':
-      return 'undefined'
-    case 'TSNeverKeyword':
-      return 'never'
-    case 'TSArrayType':
-      return `${parseTypeAnnotation(wrapTypeAnnotation(type.elementType))}[]`
-    case 'TSTypeReference':
-      if (type.typeName.type === 'Identifier') {
-        const typeName = type.typeName.name
-        if (type.typeParameters && type.typeParameters.params.length > 0) {
-          const typeParams = type.typeParameters.params
-            .map(p => parseTypeAnnotation(wrapTypeAnnotation(p)))
-            .join(', ')
-          return `${typeName}<${typeParams}>`
-        }
-        return typeName
-      } else if (type.typeName.type === 'TSQualifiedName') {
-        const typeName = `${getQualifiedNameName(type.typeName)}`
-        if (type.typeParameters && type.typeParameters.params.length > 0) {
-          const typeParams = type.typeParameters.params
-            .map(p => parseTypeAnnotation(wrapTypeAnnotation(p)))
-            .join(', ')
-          return `${typeName}<${typeParams}>`
-        }
-        return typeName
-      }
-      return UNKNOWN_TYPE
-    case 'TSUnionType':
-      return type.types
-        .map(t => parseTypeAnnotation(wrapTypeAnnotation(t)))
-        .join(' | ')
-    case 'TSIntersectionType':
-      return type.types
-        .map(t => parseTypeAnnotation(wrapTypeAnnotation(t)))
-        .join(' & ')
-    case 'TSFunctionType':
-      const params = type.parameters
-        .map(p => {
-          if (p.type === 'Identifier') {
-            return p.name
-          }
-          return DEFAULT_PARAM_NAME
-        })
-        .join(', ')
-      const returnType = type.typeAnnotation
-        ? parseTypeAnnotation(type.typeAnnotation)
-        : 'void'
-      return `(${params}) => ${returnType}`
-    case 'TSTypeLiteral':
-      return TYPE_LITERAL_PLACEHOLDER
-    case 'TSTupleType':
-      return `[${type.elementTypes
-        .filter((t): t is TSType => t.type !== 'TSNamedTupleMember')
-        .map(t => parseTypeAnnotation(wrapTypeAnnotation(t)))
-        .join(', ')}]`
-    default:
-      return UNKNOWN_TYPE
-  }
-}
 
 /**
  * 解析Vue组件中的方法

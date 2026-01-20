@@ -1,8 +1,5 @@
 import type {
   Statement,
-  TSType,
-  TSTypeAnnotation,
-  TypeAnnotation,
   ObjectMethod,
   Expression,
   Pattern,
@@ -11,7 +8,6 @@ import type {
   VariableDeclarator,
   FunctionExpression,
   ArrowFunctionExpression,
-  Noop,
   SpreadElement,
   ObjectExpression,
   ArgumentPlaceholder
@@ -26,7 +22,8 @@ import type {
 import {
   getPositionFromNode,
   getEndPositionFromNode,
-  extractVariableName
+  extractVariableName,
+  parseTypeAnnotation
 } from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
@@ -176,109 +173,6 @@ function processVariableDeclarator(
     isConst,
     startPosition: getPositionFromNode(declarator),
     endPosition: getEndPositionFromNode(declarator)
-  }
-}
-
-function parseTypeAnnotation(
-  typeAnnotation: TSType | TSTypeAnnotation | TypeAnnotation | Noop
-): string | undefined {
-  if (!typeAnnotation || typeAnnotation.type === 'Noop') {
-    return undefined
-  }
-
-  if (
-    typeAnnotation.type === 'TSTypeAnnotation' &&
-    typeAnnotation.typeAnnotation
-  ) {
-    return extractTypeString(typeAnnotation.typeAnnotation)
-  }
-
-  if (
-    typeAnnotation.type === 'TypeAnnotation' &&
-    typeAnnotation.typeAnnotation
-  ) {
-    return 'flow-type'
-  }
-
-  // 处理 TSType 类型
-  switch (typeAnnotation.type) {
-    case 'TSStringKeyword':
-    case 'TSNumberKeyword':
-    case 'TSBooleanKeyword':
-    case 'TSVoidKeyword':
-    case 'TSAnyKeyword':
-    case 'TSUnknownKeyword':
-    case 'TSNullKeyword':
-    case 'TSUndefinedKeyword':
-    case 'TSArrayType':
-    case 'TSTupleType':
-    case 'TSUnionType':
-    case 'TSIntersectionType':
-    case 'TSTypeLiteral':
-    case 'TSFunctionType':
-    case 'TSParenthesizedType':
-    case 'TSTypeReference':
-    case 'TSLiteralType':
-    case 'TSInferType':
-    case 'TSConditionalType':
-      return extractTypeString(typeAnnotation)
-    default:
-      return undefined
-  }
-}
-
-function extractTypeString(type: TSType): string {
-  switch (type.type) {
-    case 'TSStringKeyword':
-      return 'string'
-    case 'TSNumberKeyword':
-      return 'number'
-    case 'TSBooleanKeyword':
-      return 'boolean'
-    case 'TSVoidKeyword':
-      return 'void'
-    case 'TSAnyKeyword':
-      return 'any'
-    case 'TSUnknownKeyword':
-      return 'unknown'
-    case 'TSNullKeyword':
-      return 'null'
-    case 'TSUndefinedKeyword':
-      return 'undefined'
-    case 'TSArrayType':
-      return 'array'
-    case 'TSTupleType':
-      return 'tuple'
-    case 'TSUnionType':
-      return 'union'
-    case 'TSIntersectionType':
-      return 'intersection'
-    case 'TSTypeLiteral':
-      return 'object'
-    case 'TSFunctionType':
-      return 'function'
-    case 'TSParenthesizedType':
-      return extractTypeString(type.typeAnnotation)
-    case 'TSTypeReference':
-      return type.typeName.type === 'Identifier'
-        ? type.typeName.name
-        : 'unknown'
-    case 'TSLiteralType':
-      if (type.literal.type === 'StringLiteral') {
-        return 'string'
-      } else if (type.literal.type === 'NumericLiteral') {
-        return 'number'
-      } else if (type.literal.type === 'BooleanLiteral') {
-        return 'boolean'
-      } else {
-        return 'literal'
-      }
-    case 'TSInferType':
-      return 'infer'
-    case 'TSConditionalType':
-      return 'conditional'
-    default:
-      return 'unknown'
   }
 }
 

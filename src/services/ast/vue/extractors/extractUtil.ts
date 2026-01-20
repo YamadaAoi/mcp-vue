@@ -9,8 +9,17 @@ import type {
   VoidPattern,
   LVal,
   TSQualifiedName,
-  CallExpression
+  CallExpression,
+  TSTypeAnnotation,
+  TypeAnnotation,
+  TSType,
+  Noop
 } from '@babel/types'
+
+// 类型常量
+export const UNKNOWN_TYPE = 'unknown'
+export const DEFAULT_PARAM_NAME = 'param'
+export const TYPE_LITERAL_PLACEHOLDER = '{ ... }'
 
 export type LocatableNode = {
   loc?:
@@ -205,4 +214,140 @@ export function isDefineComponentCall(
     )
   }
   return false
+}
+
+/**
+ * 将 TSType 包装为 TSTypeAnnotation
+ * @param type TSType 类型
+ * @returns TSTypeAnnotation
+ */
+export function wrapTypeAnnotation(type: TSType): TSTypeAnnotation {
+  return { type: 'TSTypeAnnotation', typeAnnotation: type }
+}
+
+/**
+ * 解析类型注解，返回详细的类型字符串
+ * @param typeAnnotation 类型注解节点
+ * @returns 详细的类型字符串
+ */
+export function parseTypeAnnotation(
+  typeAnnotation:
+    | TSType
+    | TSTypeAnnotation
+    | TypeAnnotation
+    | Noop
+    | undefined
+    | null
+): string {
+  if (!typeAnnotation) {
+    return UNKNOWN_TYPE
+  }
+
+  // 处理 Noop 类型
+  if ('type' in typeAnnotation && typeAnnotation.type === 'Noop') {
+    return UNKNOWN_TYPE
+  }
+
+  // 处理 TSTypeAnnotation 包装器
+  if ('type' in typeAnnotation && typeAnnotation.type === 'TSTypeAnnotation') {
+    return parseTypeAnnotation(typeAnnotation.typeAnnotation)
+  }
+
+  // 处理 Flow TypeAnnotation
+  if ('type' in typeAnnotation && typeAnnotation.type === 'TypeAnnotation') {
+    return 'flow-type'
+  }
+
+  // 确保我们现在处理的是 TSType
+  if (!('type' in typeAnnotation)) {
+    return UNKNOWN_TYPE
+  }
+
+  const type = typeAnnotation
+
+  switch (type.type) {
+    case 'TSStringKeyword':
+      return 'string'
+    case 'TSNumberKeyword':
+      return 'number'
+    case 'TSBooleanKeyword':
+      return 'boolean'
+    case 'TSAnyKeyword':
+      return 'any'
+    case 'TSUnknownKeyword':
+      return UNKNOWN_TYPE
+    case 'TSVoidKeyword':
+      return 'void'
+    case 'TSNullKeyword':
+      return 'null'
+    case 'TSUndefinedKeyword':
+      return 'undefined'
+    case 'TSNeverKeyword':
+      return 'never'
+    case 'TSArrayType':
+      return `${parseTypeAnnotation(type.elementType)}[]`
+    case 'TSTypeReference':
+      if (type.typeName.type === 'Identifier') {
+        const typeName = type.typeName.name
+        if (type.typeParameters && type.typeParameters.params.length > 0) {
+          const typeParams = type.typeParameters.params
+            .map(p => parseTypeAnnotation(p))
+            .join(', ')
+          return `${typeName}<${typeParams}>`
+        }
+        return typeName
+      } else if (type.typeName.type === 'TSQualifiedName') {
+        const typeName = getQualifiedNameName(type.typeName)
+        if (type.typeParameters && type.typeParameters.params.length > 0) {
+          const typeParams = type.typeParameters.params
+            .map(p => parseTypeAnnotation(p))
+            .join(', ')
+          return `${typeName}<${typeParams}>`
+        }
+        return typeName
+      }
+      return UNKNOWN_TYPE
+    case 'TSUnionType':
+      return type.types.map(t => parseTypeAnnotation(t)).join(' | ')
+    case 'TSIntersectionType':
+      return type.types.map(t => parseTypeAnnotation(t)).join(' & ')
+    case 'TSFunctionType':
+      const params = type.parameters
+        .map(p => {
+          if (p.type === 'Identifier') {
+            return p.name
+          }
+          return DEFAULT_PARAM_NAME
+        })
+        .join(', ')
+      const returnType = type.typeAnnotation
+        ? parseTypeAnnotation(type.typeAnnotation)
+        : 'void'
+      return `(${params}) => ${returnType}`
+    case 'TSTypeLiteral':
+      return TYPE_LITERAL_PLACEHOLDER
+    case 'TSTupleType':
+      return `[${type.elementTypes
+        .filter((t): t is TSType => t.type !== 'TSNamedTupleMember')
+        .map(t => parseTypeAnnotation(t))
+        .join(', ')}]`
+    case 'TSParenthesizedType':
+      return `(${parseTypeAnnotation(type.typeAnnotation)})`
+    case 'TSLiteralType':
+      if (type.literal.type === 'StringLiteral') {
+        return 'string'
+      } else if (type.literal.type === 'NumericLiteral') {
+        return 'number'
+      } else if (type.literal.type === 'BooleanLiteral') {
+        return 'boolean'
+      } else {
+        return 'literal'
+      }
+    case 'TSInferType':
+      return `infer ${type.typeParameter.name}`
+    case 'TSConditionalType':
+      return `${parseTypeAnnotation(type.checkType)} extends ${parseTypeAnnotation(type.extendsType)} ? ${parseTypeAnnotation(type.trueType)} : ${parseTypeAnnotation(type.falseType)}`
+    default:
+      return UNKNOWN_TYPE
+  }
 }
