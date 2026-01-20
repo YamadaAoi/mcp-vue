@@ -13,7 +13,7 @@ import type {
   Identifier
 } from '@babel/types'
 import type { PropInfo, PropDefault } from '../types'
-import { getPositionFromNode } from './extractUtil'
+import { getLocationFromNode } from './extractUtil'
 
 const PROP_CONFIG_KEYS = {
   TYPE: 'type',
@@ -222,11 +222,7 @@ function extractPropsFromTSTypeLiteral(typeLiteral: TSTypeLiteral): PropInfo[] {
           name: propName,
           type: propType,
           required: !isOptional,
-          startPosition: getPositionFromNode(propMember),
-          endPosition: {
-            row: propMember.loc?.end?.line || 0,
-            column: propMember.loc?.end?.column || 0
-          }
+          position: getLocationFromNode(propMember)
         })
       }
     }
@@ -560,11 +556,7 @@ function extractPropsFromObjectExpression(
       validatorExpression,
       isModelProp,
       isSlotsProp,
-      startPosition: getPositionFromNode(prop),
-      endPosition: {
-        row: prop.loc?.end?.line || 0,
-        column: prop.loc?.end?.column || 0
-      }
+      position: getLocationFromNode(prop)
     })
   }
 

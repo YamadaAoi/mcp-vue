@@ -8,8 +8,7 @@ import type {
 } from '@babel/types'
 import type { LifecycleHookInfo } from '../types'
 import {
-  getPositionFromNode,
-  getEndPositionFromNode,
+  getLocationFromNode,
   parseParameter,
   parseParameters
 } from './extractUtil'
@@ -63,8 +62,7 @@ function createLifecycleHookInfo(
   return {
     name,
     parameters,
-    startPosition: getPositionFromNode(callExpr),
-    endPosition: getEndPositionFromNode(callExpr)
+    position: getLocationFromNode(callExpr)
   }
 }
 
@@ -83,8 +81,7 @@ function extractLifecycleHooksFromObjectExpression(
         hooks.push({
           name: method.key.name,
           parameters: method.params.map(param => parseParameter(param)),
-          startPosition: getPositionFromNode(method),
-          endPosition: getEndPositionFromNode(method)
+          position: getLocationFromNode(method)
         })
       }
     } else if (prop.type === 'ObjectProperty') {
@@ -102,8 +99,7 @@ function extractLifecycleHooksFromObjectExpression(
         hooks.push({
           name: objProp.key.name,
           parameters,
-          startPosition: getPositionFromNode(objProp),
-          endPosition: getEndPositionFromNode(objProp)
+          position: getLocationFromNode(objProp)
         })
       }
     }

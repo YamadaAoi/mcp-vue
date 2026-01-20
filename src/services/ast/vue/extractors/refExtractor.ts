@@ -1,8 +1,7 @@
 import type { Statement, VariableDeclarator } from '@babel/types'
 import type { RefInfo } from '../types'
 import {
-  getPositionFromNode,
-  getEndPositionFromNode,
+  getLocationFromNode,
   parseTypeAnnotation,
   extractInitialValue,
   processSetupFunction,
@@ -59,8 +58,7 @@ function extractRefFromDeclarator(
     type,
     initialValue,
     isShallow,
-    startPosition: getPositionFromNode(declarator),
-    endPosition: getEndPositionFromNode(declarator)
+    position: getLocationFromNode(declarator)
   }
 }
 

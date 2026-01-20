@@ -10,7 +10,7 @@ import type {
   TSCallSignatureDeclaration
 } from '@babel/types'
 import type { EmitInfo } from '../types'
-import { getPositionFromNode, getEndPositionFromNode } from './extractUtil'
+import { getLocationFromNode } from './extractUtil'
 
 const EMITS_PROPERTY_NAME = 'emits'
 const DEFINE_EMITS_NAME = 'defineEmits'
@@ -31,8 +31,7 @@ function parseEmitProperty(prop: ObjectProperty): EmitInfo | null {
 
   return {
     name: emitName,
-    startPosition: getPositionFromNode(prop),
-    endPosition: getEndPositionFromNode(prop)
+    position: getLocationFromNode(prop)
   }
 }
 
@@ -63,8 +62,7 @@ function extractEmitsFromArrayExpression(arrExpr: ArrayExpression): EmitInfo[] {
     if (emitName) {
       emits.push({
         name: emitName,
-        startPosition: getPositionFromNode(element),
-        endPosition: getEndPositionFromNode(element)
+        position: getLocationFromNode(element)
       })
     }
   }
@@ -166,8 +164,7 @@ function extractEmitsFromTSTypeLiteral(typeLiteral: TSTypeLiteral): EmitInfo[] {
       if (emitName) {
         emits.push({
           name: emitName,
-          startPosition: getPositionFromNode(member),
-          endPosition: getEndPositionFromNode(member)
+          position: getLocationFromNode(member)
         })
       }
     }

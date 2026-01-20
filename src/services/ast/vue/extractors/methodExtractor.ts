@@ -19,7 +19,7 @@ import type {
 } from '@babel/types'
 import type { VueMethodInfo } from '../types'
 import {
-  getPositionFromNode,
+  getLocationFromNode,
   getIdentifierName,
   isDefineComponentCall,
   parseTypeAnnotation
@@ -450,19 +450,12 @@ function extractFunctionInfo(
   const returnType = getFunctionReturnType(funcExpr)
   const isAsync = funcExpr.async || false
 
-  const startPosition = getPositionFromNode(funcExpr)
-  const endPosition = {
-    row: funcExpr.loc?.end?.line || 0,
-    column: funcExpr.loc?.end?.column || 0
-  }
-
   methods.push({
     name: methodName,
     parameters,
     returnType,
     isAsync,
-    startPosition,
-    endPosition
+    position: getLocationFromNode(funcExpr)
   })
 }
 

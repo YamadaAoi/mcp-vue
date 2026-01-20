@@ -4,18 +4,8 @@ import type {
   ImportNamespaceSpecifier,
   ImportSpecifier
 } from '@babel/types'
-import type { Position } from '../types'
-import { getPositionFromNode, getEndPositionFromNode } from './extractUtil'
-
-export interface ImportInfo {
-  source: string
-  importedNames: string[]
-  isDefaultImport: boolean
-  isNamespaceImport: boolean
-  isTypeImport?: boolean
-  startPosition?: Position
-  endPosition?: Position
-}
+import { getLocationFromNode } from './extractUtil'
+import type { ImportInfo } from '../types'
 
 /**
  * 解析导入 specifier
@@ -84,8 +74,7 @@ export function extractImports(ast: Statement[]): ImportInfo[] {
         isDefaultImport,
         isNamespaceImport,
         isTypeImport,
-        startPosition: getPositionFromNode(importNode),
-        endPosition: getEndPositionFromNode(importNode)
+        position: getLocationFromNode(importNode)
       })
     }
   }

@@ -1,8 +1,7 @@
 import type { Statement } from '@babel/types'
 import type { ExposeInfo } from '../types'
 import {
-  getPositionFromNode,
-  getEndPositionFromNode,
+  getLocationFromNode,
   parseTypeAnnotation,
   extractInitialValue,
   processSetupFunction,
@@ -100,8 +99,7 @@ function extractExposeFromStatement(stmt: Statement): ExposeInfo[] {
               type: exposeType,
               valueType,
               initialValue,
-              startPosition: getPositionFromNode(prop),
-              endPosition: getEndPositionFromNode(prop)
+              position: getLocationFromNode(prop)
             })
           }
         }

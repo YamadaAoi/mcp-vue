@@ -1,8 +1,7 @@
 import type { Statement, VariableDeclarator } from '@babel/types'
 import type { ReactiveInfo } from '../types'
 import {
-  getPositionFromNode,
-  getEndPositionFromNode,
+  getLocationFromNode,
   parseTypeAnnotation,
   extractInitialValue,
   processSetupFunction,
@@ -60,8 +59,7 @@ function extractReactiveFromDeclarator(
     type,
     initialValue,
     isShallow,
-    startPosition: getPositionFromNode(declarator),
-    endPosition: getEndPositionFromNode(declarator)
+    position: getLocationFromNode(declarator)
   }
 }
 

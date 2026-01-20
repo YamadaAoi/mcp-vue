@@ -1,8 +1,7 @@
 import type { Statement, ObjectMethod, VariableDeclarator } from '@babel/types'
 import type { VariableInfo } from '../types'
 import {
-  getPositionFromNode,
-  getEndPositionFromNode,
+  getLocationFromNode,
   extractVariableName,
   parseTypeAnnotation,
   isRefOrReactive,
@@ -40,8 +39,7 @@ function processVariableDeclarator(
     type,
     value,
     isConst,
-    startPosition: getPositionFromNode(declarator),
-    endPosition: getEndPositionFromNode(declarator)
+    position: getLocationFromNode(declarator)
   }
 }
 

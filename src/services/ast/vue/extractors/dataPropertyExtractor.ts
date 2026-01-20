@@ -6,8 +6,7 @@ import type {
 } from '@babel/types'
 import type { DataPropertyInfo } from '../types'
 import {
-  getPositionFromNode,
-  getEndPositionFromNode,
+  getLocationFromNode,
   parseTypeAnnotation,
   extractInitialValue
 } from './extractUtil'
@@ -57,8 +56,7 @@ function extractDataPropertiesFromStatement(
               name: prop.key.name,
               type,
               initialValue: extractInitialValue(prop.value),
-              startPosition: getPositionFromNode(prop),
-              endPosition: getEndPositionFromNode(prop)
+              position: getLocationFromNode(prop)
             })
           }
         }

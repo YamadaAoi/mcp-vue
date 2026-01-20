@@ -1,16 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type initialValue = any
 
-// 位置信息接口
-export interface Position {
-  row: number
-  column: number
-}
-
-// 带位置信息的基础接口
+// 带位置信息的基础接口 - 数组格式 [startRow, startColumn, endRow, endColumn]
 export interface Locatable {
-  startPosition: Position
-  endPosition: Position
+  position: [number, number, number, number]
 }
 
 // Prop默认值类型
@@ -207,19 +200,17 @@ export interface SlotsInfo extends Locatable {
   type?: 'default' | 'named' | 'scoped'
 }
 
-export interface AttrsInfo {
+export interface AttrsInfo extends Locatable {
   hasAttrs: boolean
   attrs?: Record<string, string>
 }
 
-export interface ImportInfo {
+export interface ImportInfo extends Locatable {
   source: string
   importedNames: string[]
   isDefaultImport: boolean
   isNamespaceImport: boolean
   isTypeImport?: boolean
-  startPosition?: Position
-  endPosition?: Position
 }
 
 // Vue 2 Options API 信息接口
