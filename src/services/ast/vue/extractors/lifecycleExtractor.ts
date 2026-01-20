@@ -4,17 +4,15 @@ import type {
   ObjectMethod,
   ObjectProperty,
   CallExpression,
-  Expression,
-  BlockStatement,
-  RestElement,
-  Identifier,
-  ObjectPattern,
-  ArrayPattern,
-  AssignmentPattern,
-  VoidPattern
+  BlockStatement
 } from '@babel/types'
 import type { LifecycleHookInfo } from '../types'
-import { getPositionFromNode, getEndPositionFromNode } from './extractUtil'
+import {
+  getPositionFromNode,
+  getEndPositionFromNode,
+  parseParameter,
+  parseParameters
+} from './extractUtil'
 
 const LIFECYCLE_HOOKS = [
   'beforeCreate',
@@ -49,56 +47,6 @@ const COMPOSITION_LIFECYCLE_HOOKS = [
   'onRenderTriggered',
   'onServerPrefetch'
 ]
-
-function parseParameters(node: Expression | null | undefined): string[] {
-  if (!node) return []
-
-  if (
-    node.type === 'ArrowFunctionExpression' ||
-    node.type === 'FunctionExpression'
-  ) {
-    return node.params.map(param => parseParameter(param))
-  }
-
-  return []
-}
-
-function parseParameter(
-  param:
-    | Identifier
-    | ObjectPattern
-    | ArrayPattern
-    | RestElement
-    | AssignmentPattern
-    | VoidPattern
-): string {
-  if (param.type === 'Identifier') {
-    return param.name
-  } else if (param.type === 'ObjectPattern') {
-    return '{ ... }'
-  } else if (param.type === 'ArrayPattern') {
-    return '[ ... ]'
-  } else if (param.type === 'RestElement') {
-    const argument = param.argument
-    if (argument.type === 'Identifier') {
-      return `...${argument.name || 'args'}`
-    }
-    return '...args'
-  } else if (param.type === 'AssignmentPattern') {
-    const left = param.left
-    if (left.type === 'Identifier') {
-      return `${left.name} = ...`
-    } else if (left.type === 'ObjectPattern') {
-      return '{ ... } = ...'
-    } else if (left.type === 'ArrayPattern') {
-      return '[ ... ] = ...'
-    }
-    return 'unknown'
-  } else if (param.type === 'VoidPattern') {
-    return 'void'
-  }
-  return 'unknown'
-}
 
 function createLifecycleHookInfo(
   name: string,

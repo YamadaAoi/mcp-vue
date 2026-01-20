@@ -9,10 +9,8 @@ import type {
   PatternLike,
   RestElement,
   VariableDeclarator,
-  LVal,
   FunctionExpression,
   ArrowFunctionExpression,
-  VoidPattern,
   Noop,
   SpreadElement,
   ObjectExpression,
@@ -25,7 +23,11 @@ import type {
   ReactiveInfo,
   ExposeInfo
 } from '../types'
-import { getPositionFromNode, getEndPositionFromNode } from './extractUtil'
+import {
+  getPositionFromNode,
+  getEndPositionFromNode,
+  extractVariableName
+} from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
@@ -41,38 +43,6 @@ const REF_FUNCTIONS = ['ref', 'shallowRef', 'toRef', 'toRefs']
 
 // Vue macro constants
 const DEFINE_EXPOSE = 'defineExpose'
-
-function extractVariableName(id: LVal | VoidPattern): string | null {
-  switch (id.type) {
-    case 'Identifier':
-      const identifier = id
-      return identifier.name
-    case 'ObjectPattern':
-      return '{ ... }'
-    case 'ArrayPattern':
-      return '[ ... ]'
-    case 'RestElement':
-      const restElement = id
-      const argument = restElement.argument
-      if (argument.type === 'Identifier') {
-        return `...${argument.name}`
-      } else {
-        return '...args'
-      }
-    case 'AssignmentPattern':
-      const assignmentPattern = id
-      const left = assignmentPattern.left
-      if (left.type === 'Identifier') {
-        return left.name
-      } else {
-        return '{ ... }'
-      }
-    case 'VoidPattern':
-      return null
-    default:
-      return null
-  }
-}
 
 // Helper function to check if a variable is a ref function call
 function isRef(declarator: VariableDeclarator): boolean {
