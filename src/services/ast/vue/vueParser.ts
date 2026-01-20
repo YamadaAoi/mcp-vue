@@ -25,9 +25,9 @@ import {
   extractVariables,
   extractDataProperties,
   extractRefs,
-  extractReactive,
-  extractExpose
+  extractReactive
 } from './extractors/variableExtractor'
+import { extractExpose } from './extractors/exposeExtractor'
 
 const logger = getLogger()
 
