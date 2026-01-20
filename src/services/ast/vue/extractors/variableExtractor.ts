@@ -1,16 +1,9 @@
 import type {
   Statement,
   ObjectMethod,
-  Expression,
-  Pattern,
-  PatternLike,
-  RestElement,
   VariableDeclarator,
   FunctionExpression,
-  ArrowFunctionExpression,
-  SpreadElement,
-  ObjectExpression,
-  ArgumentPlaceholder
+  ArrowFunctionExpression
 } from '@babel/types'
 import type {
   VariableInfo,
@@ -23,125 +16,17 @@ import {
   getPositionFromNode,
   getEndPositionFromNode,
   extractVariableName,
-  parseTypeAnnotation
+  parseTypeAnnotation,
+  isRefOrReactive,
+  extractInitialValue,
+  processSetupFunction,
+  REACTIVE_FUNCTIONS,
+  REF_FUNCTIONS,
+  DEFINE_EXPOSE
 } from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
-
-const REACTIVE_FUNCTIONS = [
-  'reactive',
-  'shallowReactive',
-  'readonly',
-  'shallowReadonly'
-]
-
-const REF_FUNCTIONS = ['ref', 'shallowRef', 'toRef', 'toRefs']
-
-// Vue macro constants
-const DEFINE_EXPOSE = 'defineExpose'
-
-// Helper function to check if a variable is a ref function call
-function isRef(declarator: VariableDeclarator): boolean {
-  if (!declarator.init || declarator.init.type !== 'CallExpression') {
-    return false
-  }
-
-  const callExpression = declarator.init
-  if (callExpression.callee.type !== 'Identifier') {
-    return false
-  }
-
-  const funcName = callExpression.callee.name
-  return REF_FUNCTIONS.includes(funcName)
-}
-
-// Helper function to check if a variable is a reactive function call
-function isReactive(declarator: VariableDeclarator): boolean {
-  if (!declarator.init || declarator.init.type !== 'CallExpression') {
-    return false
-  }
-
-  const callExpression = declarator.init
-  if (callExpression.callee.type !== 'Identifier') {
-    return false
-  }
-
-  const funcName = callExpression.callee.name
-  return REACTIVE_FUNCTIONS.includes(funcName)
-}
-
-// Helper function to check if a variable is a ref or reactive function call
-function isRefOrReactive(declarator: VariableDeclarator): boolean {
-  return isRef(declarator) || isReactive(declarator)
-}
-
-// Generic function to process setup functions in component declarations
-function processSetupFunction<T>(
-  stmt: Statement,
-  processor: (stmt: Statement) => T[]
-): T[] {
-  const results: T[] = []
-
-  // Process export default declarations
-  if (stmt.type === 'ExportDefaultDeclaration') {
-    const declaration = stmt.declaration
-
-    let componentOptions: ObjectExpression | null = null
-
-    // Handle defineComponent calls
-    if (
-      declaration.type === 'CallExpression' &&
-      declaration.callee.type === 'Identifier' &&
-      declaration.callee.name === 'defineComponent'
-    ) {
-      const args = declaration.arguments
-      if (args.length > 0 && args[0].type === 'ObjectExpression') {
-        componentOptions = args[0]
-      }
-    }
-    // Handle direct object expressions
-    else if (declaration.type === 'ObjectExpression') {
-      componentOptions = declaration
-    }
-
-    // Process setup function if found
-    if (componentOptions) {
-      for (const prop of componentOptions.properties) {
-        if (
-          (prop.type === 'ObjectProperty' || prop.type === 'ObjectMethod') &&
-          'key' in prop
-        ) {
-          const key = prop.key
-          const isSetup =
-            (key.type === 'Identifier' && key.name === 'setup') ||
-            (key.type === 'StringLiteral' && key.value === 'setup')
-
-          if (isSetup) {
-            let setupFunction
-            if (
-              prop.type === 'ObjectProperty' &&
-              prop.value.type === 'ArrowFunctionExpression'
-            ) {
-              setupFunction = prop.value
-            } else if (prop.type === 'ObjectMethod') {
-              setupFunction = prop
-            }
-
-            if (setupFunction && setupFunction.body.type === 'BlockStatement') {
-              for (const setupStmt of setupFunction.body.body) {
-                const nestedResults = processor(setupStmt)
-                results.push(...nestedResults)
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return results
-}
 
 function processVariableDeclarator(
   declarator: VariableDeclarator,
@@ -173,84 +58,6 @@ function processVariableDeclarator(
     isConst,
     startPosition: getPositionFromNode(declarator),
     endPosition: getEndPositionFromNode(declarator)
-  }
-}
-
-export function extractInitialValue(
-  init:
-    | Expression
-    | Pattern
-    | PatternLike
-    | RestElement
-    | SpreadElement
-    | ArgumentPlaceholder
-    | null
-    | undefined
-): unknown {
-  if (!init || typeof init !== 'object') {
-    return undefined
-  }
-
-  switch (init.type) {
-    case 'StringLiteral':
-      return init.value
-    case 'NumericLiteral':
-      return init.value
-    case 'BooleanLiteral':
-      return init.value
-    case 'NullLiteral':
-      return null
-    case 'Identifier':
-      return init.name
-    case 'ObjectExpression':
-      return '{}'
-    case 'ArrayExpression':
-      return '[]'
-    case 'UnaryExpression':
-      if (init.operator === 'void' || init.operator === 'delete') {
-        return undefined
-      }
-      return 'expression'
-    case 'CallExpression':
-      return 'function()'
-    case 'ArrowFunctionExpression':
-      return '() => {}'
-    case 'FunctionExpression':
-      return 'function() {}'
-    case 'TemplateLiteral':
-      return init.quasis.length === 1 ? init.quasis[0].value.raw : 'expression'
-    case 'BinaryExpression':
-      return 'expression'
-    case 'LogicalExpression':
-      return 'expression'
-    case 'ConditionalExpression':
-      return 'expression'
-    case 'SequenceExpression':
-      return 'expression'
-    case 'UpdateExpression':
-      return 'expression'
-    case 'MemberExpression':
-      return 'expression'
-    case 'NewExpression':
-      return 'expression'
-    case 'TypeCastExpression':
-      return extractInitialValue(init.expression)
-    case 'TSAsExpression':
-      return extractInitialValue(init.expression)
-    case 'TSSatisfiesExpression':
-      return extractInitialValue(init.expression)
-    case 'TSTypeAssertion':
-      return extractInitialValue(init.expression)
-    case 'ParenthesizedExpression':
-      return extractInitialValue(init.expression)
-    case 'AwaitExpression':
-      return 'expression'
-    case 'YieldExpression':
-      return 'expression'
-    case 'SpreadElement':
-      return '...'
-    default:
-      return 'expression'
   }
 }
 

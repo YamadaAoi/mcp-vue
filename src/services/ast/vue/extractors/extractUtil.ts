@@ -13,13 +13,40 @@ import type {
   TSTypeAnnotation,
   TypeAnnotation,
   TSType,
-  Noop
+  Noop,
+  VariableDeclarator,
+  Statement,
+  Pattern,
+  PatternLike,
+  SpreadElement,
+  ObjectExpression,
+  ArgumentPlaceholder
 } from '@babel/types'
 
 // 类型常量
 export const UNKNOWN_TYPE = 'unknown'
 export const DEFAULT_PARAM_NAME = 'param'
 export const TYPE_LITERAL_PLACEHOLDER = '{ ... }'
+
+/**
+ * Vue reactive 函数列表
+ */
+export const REACTIVE_FUNCTIONS = [
+  'reactive',
+  'shallowReactive',
+  'readonly',
+  'shallowReadonly'
+]
+
+/**
+ * Vue ref 函数列表
+ */
+export const REF_FUNCTIONS = ['ref', 'shallowRef', 'toRef', 'toRefs']
+
+/**
+ * Vue defineExpose 宏名称
+ */
+export const DEFINE_EXPOSE = 'defineExpose'
 
 export type LocatableNode = {
   loc?:
@@ -223,6 +250,208 @@ export function isDefineComponentCall(
  */
 export function wrapTypeAnnotation(type: TSType): TSTypeAnnotation {
   return { type: 'TSTypeAnnotation', typeAnnotation: type }
+}
+
+/**
+ * 检查变量是否为 ref 函数调用
+ * @param declarator 变量声明节点
+ * @returns 是否为 ref 函数调用
+ */
+export function isRef(declarator: VariableDeclarator): boolean {
+  if (!declarator.init || declarator.init.type !== 'CallExpression') {
+    return false
+  }
+
+  const callExpression = declarator.init
+  if (callExpression.callee.type !== 'Identifier') {
+    return false
+  }
+
+  const funcName = callExpression.callee.name
+  return REF_FUNCTIONS.includes(funcName)
+}
+
+/**
+ * 检查变量是否为 reactive 函数调用
+ * @param declarator 变量声明节点
+ * @returns 是否为 reactive 函数调用
+ */
+export function isReactive(declarator: VariableDeclarator): boolean {
+  if (!declarator.init || declarator.init.type !== 'CallExpression') {
+    return false
+  }
+
+  const callExpression = declarator.init
+  if (callExpression.callee.type !== 'Identifier') {
+    return false
+  }
+
+  const funcName = callExpression.callee.name
+  return REACTIVE_FUNCTIONS.includes(funcName)
+}
+
+/**
+ * 检查变量是否为 ref 或 reactive 函数调用
+ * @param declarator 变量声明节点
+ * @returns 是否为 ref 或 reactive 函数调用
+ */
+export function isRefOrReactive(declarator: VariableDeclarator): boolean {
+  return isRef(declarator) || isReactive(declarator)
+}
+
+/**
+ * 从表达式中提取初始值的字符串表示
+ * @param init 表达式节点
+ * @returns 初始值的字符串表示或 undefined
+ */
+export function extractInitialValue(
+  init:
+    | Expression
+    | Pattern
+    | PatternLike
+    | RestElement
+    | SpreadElement
+    | ArgumentPlaceholder
+    | null
+    | undefined
+): unknown {
+  if (!init || typeof init !== 'object') {
+    return undefined
+  }
+
+  switch (init.type) {
+    case 'StringLiteral':
+      return init.value
+    case 'NumericLiteral':
+      return init.value
+    case 'BooleanLiteral':
+      return init.value
+    case 'NullLiteral':
+      return null
+    case 'Identifier':
+      return init.name
+    case 'ObjectExpression':
+      return '{}'
+    case 'ArrayExpression':
+      return '[]'
+    case 'UnaryExpression':
+      if (init.operator === 'void' || init.operator === 'delete') {
+        return undefined
+      }
+      return 'expression'
+    case 'CallExpression':
+      return 'function()'
+    case 'ArrowFunctionExpression':
+      return '() => {}'
+    case 'FunctionExpression':
+      return 'function() {}'
+    case 'TemplateLiteral':
+      return init.quasis.length === 1 ? init.quasis[0].value.raw : 'expression'
+    case 'BinaryExpression':
+      return 'expression'
+    case 'LogicalExpression':
+      return 'expression'
+    case 'ConditionalExpression':
+      return 'expression'
+    case 'SequenceExpression':
+      return 'expression'
+    case 'UpdateExpression':
+      return 'expression'
+    case 'MemberExpression':
+      return 'expression'
+    case 'NewExpression':
+      return 'expression'
+    case 'TypeCastExpression':
+      return extractInitialValue(init.expression)
+    case 'TSAsExpression':
+      return extractInitialValue(init.expression)
+    case 'TSSatisfiesExpression':
+      return extractInitialValue(init.expression)
+    case 'TSTypeAssertion':
+      return extractInitialValue(init.expression)
+    case 'ParenthesizedExpression':
+      return extractInitialValue(init.expression)
+    case 'AwaitExpression':
+      return 'expression'
+    case 'YieldExpression':
+      return 'expression'
+    case 'SpreadElement':
+      return '...'
+    default:
+      return 'expression'
+  }
+}
+
+/**
+ * 通用函数，用于处理组件声明中的 setup 函数
+ * @param stmt 语句节点
+ * @param processor 处理器函数
+ * @returns 处理结果数组
+ */
+export function processSetupFunction<T>(
+  stmt: Statement,
+  processor: (stmt: Statement) => T[]
+): T[] {
+  const results: T[] = []
+
+  // Process export default declarations
+  if (stmt.type === 'ExportDefaultDeclaration') {
+    const declaration = stmt.declaration
+
+    let componentOptions: ObjectExpression | null = null
+
+    // Handle defineComponent calls
+    if (
+      declaration.type === 'CallExpression' &&
+      declaration.callee.type === 'Identifier' &&
+      declaration.callee.name === 'defineComponent'
+    ) {
+      const args = declaration.arguments
+      if (args.length > 0 && args[0].type === 'ObjectExpression') {
+        componentOptions = args[0]
+      }
+    }
+    // Handle direct object expressions
+    else if (declaration.type === 'ObjectExpression') {
+      componentOptions = declaration
+    }
+
+    // Process setup function if found
+    if (componentOptions) {
+      for (const prop of componentOptions.properties) {
+        if (
+          (prop.type === 'ObjectProperty' || prop.type === 'ObjectMethod') &&
+          'key' in prop
+        ) {
+          const key = prop.key
+          const isSetup =
+            (key.type === 'Identifier' && key.name === 'setup') ||
+            (key.type === 'StringLiteral' && key.value === 'setup')
+
+          if (isSetup) {
+            let setupFunction
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.value.type === 'ArrowFunctionExpression'
+            ) {
+              setupFunction = prop.value
+            } else if (prop.type === 'ObjectMethod') {
+              setupFunction = prop
+            }
+
+            if (setupFunction && setupFunction.body.type === 'BlockStatement') {
+              for (const setupStmt of setupFunction.body.body) {
+                const nestedResults = processor(setupStmt)
+                results.push(...nestedResults)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return results
 }
 
 /**
