@@ -15,19 +15,16 @@ import {
   isOptionsAPIComponent,
   hasSetupFunction
 } from './vueUtils'
-
 import { extractImports } from './extractors/importExtractor'
 import { extractMethods } from './extractors/methodExtractor'
 import { extractProps } from './extractors/propExtractor'
 import { extractEmits } from './extractors/emitExtractor'
 import { extractLifecycleHooks } from './extractors/lifecycleExtractor'
-import {
-  extractVariables,
-  extractReactive
-} from './extractors/variableExtractor'
+import { extractVariables } from './extractors/variableExtractor'
 import { extractExpose } from './extractors/exposeExtractor'
 import { extractDataProperties } from './extractors/dataPropertyExtractor'
 import { extractRefs } from './extractors/refExtractor'
+import { extractReactive } from './extractors/reactiveExtractor'
 
 const logger = getLogger()
 
