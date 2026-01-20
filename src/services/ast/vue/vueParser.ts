@@ -25,6 +25,8 @@ import { extractExpose } from './extractors/exposeExtractor'
 import { extractDataProperties } from './extractors/dataPropertyExtractor'
 import { extractRefs } from './extractors/refExtractor'
 import { extractReactive } from './extractors/reactiveExtractor'
+import { extractComputed } from './extractors/computedExtractor'
+import { extractComputedProperties } from './extractors/computedPropertyExtractor'
 
 const logger = getLogger()
 
@@ -57,6 +59,8 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       const refs = extractRefs(ast)
       const reactives = extractReactive(ast)
       const expose = extractExpose(ast)
+      const computed = extractComputed(ast)
+      const computedProperties = extractComputedProperties(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
         `Parsed Vue 2 component ${filename} in ${parseTime.toFixed(2)}ms`,
@@ -67,7 +71,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           emits: emits.length,
           lifecycleHooks: lifecycleHooks.length,
           variables: variables.length,
-          dataProperties: dataProperties.length
+          dataProperties: dataProperties.length,
+          computed: computed.length,
+          computedProperties: computedProperties.length
         }
       )
 
@@ -86,6 +92,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           variables?: typeof variables
           refs: typeof refs
           reactives: typeof reactives
+          computed?: typeof computed
           expose?: typeof expose
         } = {
           methods,
@@ -102,6 +109,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         if (variables.length > 0) {
           compositionData.variables = variables
         }
+        if (computed.length > 0) {
+          compositionData.computed = computed
+        }
         if (expose.length > 0) {
           compositionData.expose = expose
         }
@@ -113,6 +123,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
           dataProperties?: typeof dataProperties
+          computedProperties?: typeof computedProperties
         } = {
           methods,
           props
@@ -125,6 +136,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         }
         if (dataProperties.length > 0) {
           optionsData.dataProperties = dataProperties
+        }
+        if (computedProperties.length > 0) {
+          optionsData.computedProperties = computedProperties
         }
         result.optionsAPI = optionsData
       }
@@ -178,6 +192,8 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
       const refs = extractRefs(ast)
       const reactives = extractReactive(ast)
       const expose = extractExpose(ast)
+      const computed = extractComputed(ast)
+      const computedProperties = extractComputedProperties(ast)
       const duration = performance.now() - startTime
       logger.debug(
         `Parsed Vue 3 component ${filename} in ${duration.toFixed(2)}ms`,
@@ -188,7 +204,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           emits: emits.length,
           lifecycleHooks: lifecycleHooks.length,
           variables: variables.length,
-          dataProperties: dataProperties.length
+          dataProperties: dataProperties.length,
+          computed: computed.length,
+          computedProperties: computedProperties.length
         }
       )
 
@@ -205,6 +223,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           emits?: typeof emits
           lifecycleHooks?: typeof lifecycleHooks
           dataProperties?: typeof dataProperties
+          computedProperties?: typeof computedProperties
         } = {
           methods,
           props
@@ -218,6 +237,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         if (dataProperties.length > 0) {
           optionsData.dataProperties = dataProperties
         }
+        if (computedProperties.length > 0) {
+          optionsData.computedProperties = computedProperties
+        }
         result.optionsAPI = optionsData
       } else {
         const compositionData: {
@@ -228,6 +250,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
           variables?: typeof variables
           refs?: typeof refs
           reactives?: typeof reactives
+          computed?: typeof computed
           expose?: ExposeInfo[]
         } = {
           methods,
@@ -247,6 +270,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         }
         if (reactives.length > 0) {
           compositionData.reactives = reactives
+        }
+        if (computed.length > 0) {
+          compositionData.computed = computed
         }
         if (expose.length > 0) {
           compositionData.expose = expose
