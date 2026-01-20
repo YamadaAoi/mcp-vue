@@ -10,31 +10,10 @@ import type {
   TSCallSignatureDeclaration
 } from '@babel/types'
 import type { EmitInfo } from '../types'
-import { getPositionFromNode } from './importExtractor'
+import { getPositionFromNode, getEndPositionFromNode } from './extractUtil'
 
 const EMITS_PROPERTY_NAME = 'emits'
 const DEFINE_EMITS_NAME = 'defineEmits'
-
-type LocatableNode = {
-  loc?:
-    | {
-        start?: { line?: number; column?: number }
-        end?: { line?: number; column?: number }
-      }
-    | null
-    | undefined
-}
-
-function getEndPositionFromNode(node: LocatableNode): {
-  row: number
-  column: number
-} {
-  const position = node?.loc?.end
-  return {
-    row: position?.line || 0,
-    column: position?.column || 0
-  }
-}
 
 function parseEmitProperty(prop: ObjectProperty): EmitInfo | null {
   const key = prop.key

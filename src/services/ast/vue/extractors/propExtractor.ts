@@ -13,7 +13,7 @@ import type {
   Identifier
 } from '@babel/types'
 import type { PropInfo, PropDefault } from '../types'
-import { getPositionFromNode } from './importExtractor'
+import { getPositionFromNode } from './extractUtil'
 
 const PROP_CONFIG_KEYS = {
   TYPE: 'type',

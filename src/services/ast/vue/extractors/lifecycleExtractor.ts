@@ -14,7 +14,7 @@ import type {
   VoidPattern
 } from '@babel/types'
 import type { LifecycleHookInfo } from '../types'
-import { getPositionFromNode } from './importExtractor'
+import { getPositionFromNode, getEndPositionFromNode } from './extractUtil'
 
 const LIFECYCLE_HOOKS = [
   'beforeCreate',
@@ -49,25 +49,6 @@ const COMPOSITION_LIFECYCLE_HOOKS = [
   'onRenderTriggered',
   'onServerPrefetch'
 ]
-
-function getEndPositionFromNode(node: {
-  loc?:
-    | {
-        start?: { line?: number; column?: number }
-        end?: { line?: number; column?: number }
-      }
-    | null
-    | undefined
-}): {
-  row: number
-  column: number
-} {
-  const position = node?.loc?.end
-  return {
-    row: position?.line || 0,
-    column: position?.column || 0
-  }
-}
 
 function parseParameters(node: Expression | null | undefined): string[] {
   if (!node) return []

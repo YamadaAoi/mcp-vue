@@ -9,7 +9,6 @@ import type {
   PatternLike,
   RestElement,
   VariableDeclarator,
-  Node,
   LVal,
   FunctionExpression,
   ArrowFunctionExpression,
@@ -26,7 +25,7 @@ import type {
   ReactiveInfo,
   ExposeInfo
 } from '../types'
-import { getPositionFromNode } from './importExtractor'
+import { getPositionFromNode, getEndPositionFromNode } from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
@@ -42,17 +41,6 @@ const REF_FUNCTIONS = ['ref', 'shallowRef', 'toRef', 'toRefs']
 
 // Vue macro constants
 const DEFINE_EXPOSE = 'defineExpose'
-
-function getEndPositionFromNode(node: Node): {
-  row: number
-  column: number
-} {
-  const position = node?.loc?.end
-  return {
-    row: position?.line || 0,
-    column: position?.column || 0
-  }
-}
 
 function extractVariableName(id: LVal | VoidPattern): string | null {
   switch (id.type) {

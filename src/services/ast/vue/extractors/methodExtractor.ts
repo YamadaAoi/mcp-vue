@@ -21,7 +21,7 @@ import type {
   VoidPattern
 } from '@babel/types'
 import type { VueMethodInfo } from '../types'
-import { getPositionFromNode } from './importExtractor'
+import { getPositionFromNode } from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
