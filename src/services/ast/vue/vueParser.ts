@@ -23,11 +23,11 @@ import { extractEmits } from './extractors/emitExtractor'
 import { extractLifecycleHooks } from './extractors/lifecycleExtractor'
 import {
   extractVariables,
-  extractRefs,
   extractReactive
 } from './extractors/variableExtractor'
 import { extractExpose } from './extractors/exposeExtractor'
 import { extractDataProperties } from './extractors/dataPropertyExtractor'
+import { extractRefs } from './extractors/refExtractor'
 
 const logger = getLogger()
 
