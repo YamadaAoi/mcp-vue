@@ -1,49 +1,15 @@
-import type {
-  Statement,
-  CallExpression,
-  ArrowFunctionExpression,
-  FunctionExpression,
-  ObjectExpression,
-  Identifier
-} from '@babel/types'
+import type { Statement, CallExpression, ObjectExpression } from '@babel/types'
 import type { WatchEffectInfo } from '../types'
 import {
   getLocationFromNode,
+  isFunctionLike,
+  isIdentifier,
   parseParameters,
   processSetupFunction
 } from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
-
-/**
- * 检查节点是否为标识符
- */
-function isIdentifier(node: unknown): node is Identifier {
-  return !!(
-    node &&
-    typeof node === 'object' &&
-    'type' in node &&
-    node.type === 'Identifier' &&
-    'name' in node
-  )
-}
-
-/**
- * 检查节点是否为函数表达式
- */
-function isFunctionLike(
-  node: unknown
-): node is ArrowFunctionExpression | FunctionExpression {
-  return !!(
-    node &&
-    typeof node === 'object' &&
-    'type' in node &&
-    (node.type === 'ArrowFunctionExpression' ||
-      node.type === 'FunctionExpression') &&
-    'params' in node
-  )
-}
 
 /**
  * 提取回调函数中使用的响应式变量（简单实现）

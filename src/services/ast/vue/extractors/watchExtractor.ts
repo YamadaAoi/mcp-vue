@@ -1,11 +1,7 @@
 import type {
   Statement,
   CallExpression,
-  ArrowFunctionExpression,
-  FunctionExpression,
   ObjectExpression,
-  Identifier,
-  ArrayExpression,
   MemberExpression,
   Expression,
   ArgumentPlaceholder,
@@ -14,70 +10,16 @@ import type {
 import type { WatchInfo } from '../types'
 import {
   getLocationFromNode,
+  isArrayExpression,
+  isFunctionLike,
+  isIdentifier,
+  isMemberExpression,
   parseParameters,
   processSetupFunction
 } from './extractUtil'
 import { getLogger } from '../../../../utils/logger'
 
 const logger = getLogger()
-
-/**
- * 检查节点是否为标识符
- */
-function isIdentifier(node: unknown): node is Identifier {
-  return !!(
-    node &&
-    typeof node === 'object' &&
-    'type' in node &&
-    node.type === 'Identifier' &&
-    'name' in node
-  )
-}
-
-/**
- * 检查节点是否为数组表达式
- */
-function isArrayExpression(node: unknown): node is ArrayExpression {
-  return !!(
-    node &&
-    typeof node === 'object' &&
-    'type' in node &&
-    node.type === 'ArrayExpression' &&
-    'elements' in node
-  )
-}
-
-/**
-     
-   
-  
- * 检查节点是否为成员表达式
- */
-function isMemberExpression(node: unknown): node is MemberExpression {
-  return !!(
-    node &&
-    typeof node === 'object' &&
-    'type' in node &&
-    node.type === 'MemberExpression' &&
-    'property' in node
-  )
-}
-
-/**
- * 检查节点是否为函数表达式
- */
-function isFunctionLike(
-  node: unknown
-): node is ArrowFunctionExpression | FunctionExpression {
-  return !!(
-    node &&
-    typeof node === 'object' &&
-    'type' in node &&
-    (node.type === 'ArrowFunctionExpression' ||
-      node.type === 'FunctionExpression') &&
-    'params' in node
-  )
-}
 
 /**
  * 从成员表达式中提取完整路径

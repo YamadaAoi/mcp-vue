@@ -19,7 +19,12 @@ import type {
   PatternLike,
   SpreadElement,
   ObjectExpression,
-  ArgumentPlaceholder
+  ArgumentPlaceholder,
+  StringLiteral,
+  ArrayExpression,
+  MemberExpression,
+  ArrowFunctionExpression,
+  FunctionExpression
 } from '@babel/types'
 
 // 类型常量
@@ -46,6 +51,74 @@ export const REF_FUNCTIONS = ['ref', 'shallowRef', 'toRef', 'toRefs']
  * Vue defineExpose 宏名称
  */
 export const DEFINE_EXPOSE = 'defineExpose'
+
+/**
+ * 检查节点是否为标识符
+ */
+export function isIdentifier(node: unknown): node is Identifier {
+  return !!(
+    node &&
+    typeof node === 'object' &&
+    'type' in node &&
+    node.type === 'Identifier' &&
+    'name' in node
+  )
+}
+
+/**
+ * 检查节点是否为字符串字面量
+ */
+export function isStringLiteral(node: unknown): node is StringLiteral {
+  return !!(
+    node &&
+    typeof node === 'object' &&
+    'type' in node &&
+    node.type === 'StringLiteral' &&
+    'value' in node
+  )
+}
+
+/**
+ * 检查节点是否为数组表达式
+ */
+export function isArrayExpression(node: unknown): node is ArrayExpression {
+  return !!(
+    node &&
+    typeof node === 'object' &&
+    'type' in node &&
+    node.type === 'ArrayExpression' &&
+    'elements' in node
+  )
+}
+
+/**
+ * 检查节点是否为成员表达式
+ */
+export function isMemberExpression(node: unknown): node is MemberExpression {
+  return !!(
+    node &&
+    typeof node === 'object' &&
+    'type' in node &&
+    node.type === 'MemberExpression' &&
+    'property' in node
+  )
+}
+
+/**
+ * 检查节点是否为函数表达式
+ */
+export function isFunctionLike(
+  node: unknown
+): node is ArrowFunctionExpression | FunctionExpression {
+  return !!(
+    node &&
+    typeof node === 'object' &&
+    'type' in node &&
+    (node.type === 'ArrowFunctionExpression' ||
+      node.type === 'FunctionExpression') &&
+    'params' in node
+  )
+}
 
 export type LocatableNode = {
   loc?:
