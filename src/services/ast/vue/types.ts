@@ -86,8 +86,14 @@ export interface WatchInfo extends Locatable {
 
 // Composition API - WatchEffect信息
 export interface WatchEffectInfo extends Locatable {
-  name?: string
-  isLazy?: boolean
+  name: string
+  parameters?: string[]
+  flush?: 'pre' | 'post' | 'sync'
+  onTrack?: boolean
+  onTrigger?: boolean
+  callbackType?: 'function'
+  reactiveVariables?: string[]
+  usesOnCleanup?: boolean
 }
 
 // Composition API - Lifecycle Hook信息
