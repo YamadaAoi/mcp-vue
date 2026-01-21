@@ -39,6 +39,7 @@ import {
   extractProvide,
   extractInject
 } from './extractors/provideInjectExtractor'
+import { extractMixins } from './extractors/mixinExtractor'
 
 const logger = getLogger()
 
@@ -78,6 +79,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       const watchEffects = extractWatchEffect(ast)
       const provides = extractProvide(ast)
       const injects = extractInject(ast)
+      const mixins = extractMixins(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
         `Parsed Vue 2 component ${filename} in ${parseTime.toFixed(2)}ms`
@@ -154,6 +156,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         if (watchProperties.length > 0) {
           optionsData.watchProperties = watchProperties
         }
+        if (mixins.length > 0) {
+          optionsData.mixins = mixins
+        }
         result.optionsAPI = optionsData
       }
 
@@ -213,6 +218,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
       const watchProperties = extractWatchProperties(ast)
       const provides = extractProvide(ast)
       const injects = extractInject(ast)
+      const mixins = extractMixins(ast)
       const duration = performance.now() - startTime
       logger.debug(
         `Parsed Vue 3 component ${filename} in ${duration.toFixed(2)}ms`
@@ -246,6 +252,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         }
         if (watchProperties.length > 0) {
           optionsData.watchProperties = watchProperties
+        }
+        if (mixins.length > 0) {
+          optionsData.mixins = mixins
         }
         result.optionsAPI = optionsData
       } else {
