@@ -150,6 +150,7 @@ export interface ComputedPropertyInfo extends Locatable {
 export interface WatchPropertyInfo extends Locatable {
   name: string
   dependencies: string[]
+  parameters?: string[]
   isDeep?: boolean
   isImmediate?: boolean
   callbackType?: 'function' | 'object'
