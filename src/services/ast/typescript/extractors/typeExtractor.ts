@@ -126,8 +126,7 @@ function parseInterfaceInfo(node: ASTNode): TypeInfo | null {
       methods,
       typeParameters,
       extends: extendsTypes,
-      startPosition: node.startPosition,
-      endPosition: node.endPosition
+      position: node.position
     }
   } catch (error) {
     logger.error(
@@ -167,8 +166,7 @@ function parseTypeAliasInfo(node: ASTNode): TypeInfo | null {
       methods: [],
       typeParameters,
       typeBody,
-      startPosition: node.startPosition,
-      endPosition: node.endPosition
+      position: node.position
     }
   } catch (error) {
     logger.error(
@@ -198,8 +196,7 @@ function parseEnumInfo(node: ASTNode): TypeInfo | null {
       properties: [],
       methods: [],
       enumMembers,
-      startPosition: node.startPosition,
-      endPosition: node.endPosition
+      position: node.position
     }
   } catch (error) {
     logger.error(

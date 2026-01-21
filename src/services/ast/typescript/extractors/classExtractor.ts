@@ -171,8 +171,7 @@ function parseClassInfo(node: ASTNode): ClassInfo | null {
       methods,
       properties,
       accessors: accessors.length > 0 ? accessors : undefined,
-      startPosition: node.startPosition,
-      endPosition: node.endPosition
+      position: node.position
     }
 
     return classInfo

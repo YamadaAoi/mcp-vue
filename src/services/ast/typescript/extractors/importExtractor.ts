@@ -97,7 +97,7 @@ function parseImportInfo(node: ASTNode): ImportInfo | null {
       isNamespace,
       isTypeOnly,
       isSideEffect,
-      startPosition: node.startPosition
+      position: node.position
     }
   } catch (error) {
     logger.error(

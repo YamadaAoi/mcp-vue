@@ -1,16 +1,15 @@
 import { type Node, type Tree } from 'web-tree-sitter'
 import type { TsParseResult, ASTNode } from './types'
-import {
-  extractFunctions,
-  extractFunctionCalls,
-  extractClasses,
-  extractVariables,
-  extractImports,
-  extractExports,
-  extractTypes
-} from './extractors'
+import { extractFunctions } from './extractors/functionExtractor'
+import { extractClasses } from './extractors/classExtractor'
+import { extractFunctionCalls } from './extractors/functionCallExtractor'
+import { extractVariables } from './extractors/variableExtractor'
+import { extractImports } from './extractors/importExtractor'
+import { extractExports } from './extractors/exportExtractor'
+import { extractTypes } from './extractors/typeExtractor'
 import { getParserPool } from '../pool/parserPool'
 import { getLogger } from '../../../utils/logger'
+import { getLocationFromNode } from './extractors/extractUtil'
 
 const SUPPORTED_EXTENSIONS = ['ts', 'js', 'tsx', 'jsx'] as const
 
@@ -62,14 +61,7 @@ function convertTreeSitterNode(node: Node): ASTNode {
   const astNode: ASTNode = {
     type: node.type,
     text: node.text,
-    startPosition: {
-      row: node.startPosition.row,
-      column: node.startPosition.column
-    },
-    endPosition: {
-      row: node.endPosition.row,
-      column: node.endPosition.column
-    },
+    position: getLocationFromNode(node),
     children: []
   }
 
@@ -84,14 +76,7 @@ function convertTreeSitterNode(node: Node): ASTNode {
           const childAST: ASTNode = {
             type: child.type,
             text: child.text,
-            startPosition: {
-              row: child.startPosition.row,
-              column: child.startPosition.column
-            },
-            endPosition: {
-              row: child.endPosition.row,
-              column: child.endPosition.column
-            },
+            position: getLocationFromNode(child),
             children: []
           }
           currentAST.children.push(childAST)
@@ -135,7 +120,6 @@ async function parseCode(
     }
 
     const astNode = convertTreeSitterNode(rootNode)
-
     const functions = extractFunctions(astNode)
     const functionCalls = extractFunctionCalls(astNode)
     const classes = extractClasses(astNode)
@@ -145,27 +129,37 @@ async function parseCode(
     const types = extractTypes(astNode)
 
     const duration = performance.now() - startTime
-    logger.debug(`Parsed ${filename} in ${duration.toFixed(2)}ms`, {
-      functions: functions.length,
-      functionCalls: functionCalls.length,
-      classes: classes.length,
-      variables: variables.length,
-      imports: imports.length,
-      exports: exports.length,
-      types: types.length
-    })
+    logger.debug(`Parsed ${filename} in ${duration.toFixed(2)}ms`)
 
-    return {
-      language: ext ? getLanguageFromExtension(ext) : languageType,
-      ast: astNode,
-      functions,
-      functionCalls,
-      classes,
-      variables,
-      imports,
-      exports,
-      types
+    const result: TsParseResult = {
+      language: ext ? getLanguageFromExtension(ext) : languageType
     }
+
+    if (functions?.length) {
+      result.functions = functions
+    }
+    if (functionCalls?.length) {
+      result.functionCalls = functionCalls
+    }
+    if (classes?.length) {
+      result.classes = classes
+    }
+    if (variables?.length) {
+      result.variables = variables
+    }
+    if (imports?.length) {
+      result.imports = imports
+    }
+    if (exports?.length) {
+      result.exports = exports
+    }
+    if (types?.length) {
+      result.types = types
+    }
+
+    logger.debug(`Parsed TS ${languageType} file ${filename}`, result)
+
+    return result
   } catch (error) {
     logger.error(
       `Error parsing ${filename}:`,

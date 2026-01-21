@@ -103,14 +103,13 @@ export function extractFunctionCalls(astNode: ASTNode): FunctionCallInfo[] {
           const callInfo: FunctionCallInfo = {
             name,
             arguments: extractArguments(node),
-            startPosition: node.startPosition,
-            endPosition: node.endPosition
+            position: node.position
           }
 
           functionCalls.push(callInfo)
 
           logger.debug(
-            `Extracted function call: ${name} at line ${node.startPosition?.row}`
+            `Extracted function call: ${name} at line ${node.position.toString()}`
           )
         }
       }

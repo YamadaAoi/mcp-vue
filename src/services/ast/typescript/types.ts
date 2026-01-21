@@ -1,30 +1,29 @@
-export interface ASTNode {
+// 带位置信息的基础接口 - 数组格式 [startRow, startColumn, endRow, endColumn]
+export interface Locatable {
+  position: [number, number, number, number]
+}
+
+export interface ASTNode extends Locatable {
   type: string
   text: string
-  startPosition: { row: number; column: number }
-  endPosition: { row: number; column: number }
   children: ASTNode[]
 }
 
-export interface FunctionInfo {
+export interface FunctionInfo extends Locatable {
   name: string
   type: string
   parameters: string[]
   returnType?: string
   isAsync: boolean
   isGenerator: boolean
-  startPosition: { row: number; column: number }
-  endPosition: { row: number; column: number }
 }
 
-export interface FunctionCallInfo {
+export interface FunctionCallInfo extends Locatable {
   name: string
   arguments: string[]
-  startPosition: { row: number; column: number }
-  endPosition: { row: number; column: number }
 }
 
-export interface ClassInfo {
+export interface ClassInfo extends Locatable {
   name: string
   extends?: string
   implements?: string[]
@@ -34,8 +33,6 @@ export interface ClassInfo {
   methods: MethodInfo[]
   properties: PropertyInfo[]
   accessors?: AccessorInfo[]
-  startPosition: { row: number; column: number }
-  endPosition: { row: number; column: number }
 }
 
 export interface MethodInfo {
@@ -68,7 +65,7 @@ export interface AccessorInfo {
   decorators?: string[]
 }
 
-export interface VariableInfo {
+export interface VariableInfo extends Locatable {
   name: string
   type?: string
   value?: string
@@ -77,27 +74,24 @@ export interface VariableInfo {
   isExported: boolean
   scope?: 'local' | 'module' | 'global'
   decorators?: string[]
-  startPosition: { row: number; column: number }
 }
 
-export interface ImportInfo {
+export interface ImportInfo extends Locatable {
   source: string
   imports: string[]
   isDefault: boolean
   isNamespace: boolean
   isTypeOnly: boolean
   isSideEffect: boolean
-  startPosition: { row: number; column: number }
 }
 
-export interface ExportInfo {
+export interface ExportInfo extends Locatable {
   name: string
   type: 'function' | 'class' | 'variable' | 'type'
   isDefault: boolean
-  startPosition: { row: number; column: number }
 }
 
-export interface TypeInfo {
+export interface TypeInfo extends Locatable {
   name: string
   kind: 'interface' | 'type' | 'enum' | 'class'
   properties: TypePropertyInfo[]
@@ -106,8 +100,6 @@ export interface TypeInfo {
   extends?: string[]
   typeBody?: string
   enumMembers?: string[]
-  startPosition: { row: number; column: number }
-  endPosition: { row: number; column: number }
 }
 
 export interface TypePropertyInfo {
@@ -119,12 +111,11 @@ export interface TypePropertyInfo {
 
 export interface TsParseResult {
   language: 'typescript' | 'tsx' | 'javascript' | 'jsx'
-  ast: ASTNode
-  functions: FunctionInfo[]
-  functionCalls: FunctionCallInfo[]
-  classes: ClassInfo[]
-  variables: VariableInfo[]
-  imports: ImportInfo[]
-  exports: ExportInfo[]
-  types: TypeInfo[]
+  functions?: FunctionInfo[]
+  functionCalls?: FunctionCallInfo[]
+  classes?: ClassInfo[]
+  variables?: VariableInfo[]
+  imports?: ImportInfo[]
+  exports?: ExportInfo[]
+  types?: TypeInfo[]
 }

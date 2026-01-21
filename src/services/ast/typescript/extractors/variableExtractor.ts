@@ -120,7 +120,7 @@ export function extractVariables(astNode: ASTNode): VariableInfo[] {
                   isExported,
                   scope,
                   decorators,
-                  startPosition: child.startPosition
+                  position: child.position
                 })
               }
             } catch (error) {

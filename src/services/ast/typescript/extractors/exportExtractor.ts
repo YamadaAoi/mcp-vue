@@ -89,7 +89,7 @@ function parseExportInfo(node: ASTNode): ExportInfo | null {
               name: nameNode.text,
               type: exportType,
               isDefault,
-              startPosition: node.startPosition
+              position: node.position
             }
           }
         } else if (child.type === 'lexical_declaration') {
@@ -106,17 +106,18 @@ function parseExportInfo(node: ASTNode): ExportInfo | null {
                 name: nameNode.text,
                 type: exportType,
                 isDefault,
-                startPosition: node.startPosition
+                position: node.position
               }
             }
           }
         } else {
-          const result = extractNameAndPosition(child, node.startPosition)
+          const result = extractNameAndPosition(child)
           if (result) {
             return {
               ...result,
               type: exportType,
-              isDefault
+              isDefault,
+              position: node.position
             }
           }
         }
@@ -125,7 +126,7 @@ function parseExportInfo(node: ASTNode): ExportInfo | null {
           name: child.text,
           type: 'variable' as const,
           isDefault,
-          startPosition: node.startPosition
+          position: child.position
         }
       }
     }
@@ -141,15 +142,11 @@ function parseExportInfo(node: ASTNode): ExportInfo | null {
   }
 }
 
-function extractNameAndPosition(
-  node: ASTNode,
-  startPosition: { row: number; column: number }
-): { name: string; startPosition: { row: number; column: number } } | null {
+function extractNameAndPosition(node: ASTNode): { name: string } | null {
   const nameNode = findChildByType(node, IDENTIFIER_NODE_TYPE)
   if (nameNode) {
     return {
-      name: nameNode.text,
-      startPosition
+      name: nameNode.text
     }
   }
   return null
