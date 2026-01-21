@@ -92,6 +92,25 @@ export function parseParameter(
   } else if (param.type === 'ObjectPattern') {
     return '{ ... }'
   } else if (param.type === 'ArrayPattern') {
+    // 尝试提取数组模式中的实际参数名称
+    const elements = param.elements
+    if (elements.length > 0) {
+      const elementNames = elements
+        .map(element => {
+          if (!element) return ''
+          if (element.type === 'Identifier') {
+            return element.name
+          } else if (
+            element.type === 'RestElement' &&
+            element.argument.type === 'Identifier'
+          ) {
+            return `...${element.argument.name}`
+          }
+          return '...'
+        })
+        .filter(Boolean)
+      return `[${elementNames.join(', ')}]`
+    }
     return '[ ... ]'
   } else if (param.type === 'RestElement') {
     const argument = param.argument
@@ -106,6 +125,25 @@ export function parseParameter(
     } else if (left.type === 'ObjectPattern') {
       return '{ ... } = ...'
     } else if (left.type === 'ArrayPattern') {
+      // 尝试提取数组模式中的实际参数名称
+      const elements = left.elements
+      if (elements.length > 0) {
+        const elementNames = elements
+          .map(element => {
+            if (!element) return ''
+            if (element.type === 'Identifier') {
+              return element.name
+            } else if (
+              element.type === 'RestElement' &&
+              element.argument.type === 'Identifier'
+            ) {
+              return `...${element.argument.name}`
+            }
+            return '...'
+          })
+          .filter(Boolean)
+        return `[${elementNames.join(', ')}] = ...`
+      }
       return '[ ... ] = ...'
     }
     return 'unknown'

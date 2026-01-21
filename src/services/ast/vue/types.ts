@@ -76,6 +76,7 @@ export interface ComputedInfo extends Locatable {
 export interface WatchInfo extends Locatable {
   name: string
   dependencies: string[]
+  parameters?: string[]
   isDeep?: boolean
   isImmediate?: boolean
   flush?: 'pre' | 'post' | 'sync'

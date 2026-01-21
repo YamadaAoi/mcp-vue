@@ -33,6 +33,7 @@ import { extractReactive } from './extractors/reactiveExtractor'
 import { extractComputed } from './extractors/computedExtractor'
 import { extractComputedProperties } from './extractors/computedPropertyExtractor'
 import { extractWatchProperties } from './extractors/watchPropertyExtractor'
+import { extractWatch } from './extractors/watchExtractor'
 
 const logger = getLogger()
 
@@ -67,6 +68,7 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
       const expose = extractExpose(ast)
       const computed = extractComputed(ast)
       const computedProperties = extractComputedProperties(ast)
+      const watch = extractWatch(ast)
       const watchProperties = extractWatchProperties(ast)
       const parseTime = performance.now() - startTime
       logger.debug(
@@ -104,6 +106,9 @@ function parseVue2Component(code: string, filename: string): VueParseResult {
         }
         if (computed.length > 0) {
           compositionData.computed = computed
+        }
+        if (watch.length > 0) {
+          compositionData.watch = watch
         }
         if (expose.length > 0) {
           compositionData.expose = expose
@@ -185,6 +190,7 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
       const reactives = extractReactive(ast)
       const expose = extractExpose(ast)
       const computed = extractComputed(ast)
+      const watch = extractWatch(ast)
       const computedProperties = extractComputedProperties(ast)
       const watchProperties = extractWatchProperties(ast)
       const duration = performance.now() - startTime
@@ -247,6 +253,9 @@ function parseVue3Component(code: string, filename: string): VueParseResult {
         }
         if (computed.length > 0) {
           compositionData.computed = computed
+        }
+        if (watch.length > 0) {
+          compositionData.watch = watch
         }
         if (expose.length > 0) {
           compositionData.expose = expose
