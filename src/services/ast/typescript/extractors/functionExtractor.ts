@@ -78,7 +78,10 @@ export function extractFunctions(astNode: ASTNode): FunctionInfo[] {
 
         const isCallback = isInlineCallback(node, parent)
         const isMethod = isClassMethod(node, parent)
-        if (!isCallback && !isMethod) {
+        // 只提取顶层函数，即直接位于program节点下的函数
+        const isTopLevel = parent?.type === 'program'
+
+        if (!isCallback && !isMethod && isTopLevel) {
           const funcInfo = parseFunctionInfo(node)
           if (funcInfo) {
             functions.push(funcInfo)
@@ -87,10 +90,16 @@ export function extractFunctions(astNode: ASTNode): FunctionInfo[] {
             )
           }
         } else {
-          const reason = isCallback ? 'callback' : 'class method'
-          logger.debug(
-            `Skipped ${reason} function at line ${node.position.toString()}`
-          )
+          let reason = ''
+          if (isCallback) reason = 'callback'
+          else if (isMethod) reason = 'class method'
+          else if (!isTopLevel) reason = 'non-top-level function'
+
+          if (reason) {
+            logger.debug(
+              `Skipped ${reason} function at line ${node.position.toString()}`
+            )
+          }
         }
       }
 

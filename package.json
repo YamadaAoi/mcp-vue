@@ -1,6 +1,6 @@
 {
   "name": "mcp-vue",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A Local MCP server for finding vue code references using Tree-sitter. Usage: npx mcp-vue [--cwd=<path>] [--level=<DEBUG|INFO|WARN|ERROR>] [--log-file=<path>] [--no-console] [--no-file]",
   "type": "module",
   "main": "dist/index.js",

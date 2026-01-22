@@ -38,21 +38,32 @@ function isTypeDeclarationNodeType(
 
 export function extractTypes(astNode: ASTNode): TypeInfo[] {
   const types: TypeInfo[] = []
-  const queue: ASTNode[] = [astNode]
+  const queue: Array<{ node: ASTNode; parent?: ASTNode }> = [{ node: astNode }]
 
   while (queue.length > 0) {
-    const node = queue.shift()!
+    const { node, parent } = queue.shift()!
 
     try {
       if (isTypeDeclarationNodeType(node.type)) {
-        const typeInfo = parseTypeInfo(node)
-        if (typeInfo) {
-          types.push(typeInfo)
-          logger.debug(`Extracted type: ${typeInfo.name} (${typeInfo.kind})`)
+        // 只提取顶层类型定义，即直接位于program节点下的类型定义
+        const isTopLevel = parent?.type === 'program'
+
+        if (isTopLevel) {
+          const typeInfo = parseTypeInfo(node)
+          if (typeInfo) {
+            types.push(typeInfo)
+            logger.debug(`Extracted type: ${typeInfo.name} (${typeInfo.kind})`)
+          }
+        } else {
+          logger.debug(
+            `Skipped non-top-level type at line ${node.position.toString()}`
+          )
         }
       }
 
-      queue.push(...node.children)
+      for (const child of node.children) {
+        queue.push({ node: child, parent: node })
+      }
     } catch (error) {
       logger.error(
         `Failed to process node of type ${node.type}`,

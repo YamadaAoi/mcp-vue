@@ -38,23 +38,34 @@ function hasChildByType(node: ASTNode, nodeType: string): boolean {
 
 export function extractExports(astNode: ASTNode): ExportInfo[] {
   const exports: ExportInfo[] = []
-  const queue: ASTNode[] = [astNode]
+  const queue: Array<{ node: ASTNode; parent?: ASTNode }> = [{ node: astNode }]
 
   while (queue.length > 0) {
-    const node = queue.shift()!
+    const { node, parent } = queue.shift()!
 
     try {
       if (isExportNodeType(node.type)) {
-        const exportInfo = parseExportInfo(node)
-        if (exportInfo) {
-          exports.push(exportInfo)
+        // 只提取顶层导出，即直接位于program节点下的导出
+        const isTopLevel = parent?.type === 'program'
+
+        if (isTopLevel) {
+          const exportInfo = parseExportInfo(node)
+          if (exportInfo) {
+            exports.push(exportInfo)
+            logger.debug(
+              `Extracted export: ${exportInfo.name} (${exportInfo.type})`
+            )
+          }
+        } else {
           logger.debug(
-            `Extracted export: ${exportInfo.name} (${exportInfo.type})`
+            `Skipped non-top-level export at line ${node.position.toString()}`
           )
         }
       }
 
-      queue.push(...node.children)
+      for (const child of node.children) {
+        queue.push({ node: child, parent: node })
+      }
     } catch (error) {
       logger.error(
         `Failed to process node of type ${node.type}`,
