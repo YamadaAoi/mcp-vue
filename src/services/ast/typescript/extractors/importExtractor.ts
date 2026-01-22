@@ -20,23 +20,34 @@ function isImportNodeType(
 
 export function extractImports(astNode: ASTNode): ImportInfo[] {
   const imports: ImportInfo[] = []
-  const queue: ASTNode[] = [astNode]
+  const queue: Array<{ node: ASTNode; parent?: ASTNode }> = [{ node: astNode }]
 
   while (queue.length > 0) {
-    const node = queue.shift()!
+    const { node, parent } = queue.shift()!
 
     try {
       if (isImportNodeType(node.type)) {
-        const importInfo = parseImportInfo(node)
-        if (importInfo) {
-          imports.push(importInfo)
+        // 只提取顶层导入，即直接位于program节点下的导入
+        const isTopLevel = parent?.type === 'program'
+
+        if (isTopLevel) {
+          const importInfo = parseImportInfo(node)
+          if (importInfo) {
+            imports.push(importInfo)
+            logger.debug(
+              `Extracted import: ${importInfo.source} (${importInfo.imports.join(', ')})`
+            )
+          }
+        } else {
           logger.debug(
-            `Extracted import: ${importInfo.source} (${importInfo.imports.join(', ')})`
+            `Skipped non-top-level import at line ${node.position.toString()}`
           )
         }
       }
 
-      queue.push(...node.children)
+      for (const child of node.children) {
+        queue.push({ node: child, parent: node })
+      }
     } catch (error) {
       logger.error(
         `Failed to process node of type ${node.type}`,

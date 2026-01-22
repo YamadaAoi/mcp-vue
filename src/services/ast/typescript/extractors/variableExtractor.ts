@@ -77,70 +77,70 @@ function determineScope(node: ASTNode): 'local' | 'module' | 'global' {
 
 export function extractVariables(astNode: ASTNode): VariableInfo[] {
   const variables: VariableInfo[] = []
-  const stack: ASTNode[] = [astNode]
 
-  while (stack.length > 0) {
-    const node = stack.pop()
-    if (!node) continue
+  // 只处理文件最顶层的变量声明
+  // 严格跳过任何函数、块或其他作用域内的变量
 
-    try {
-      if (isVariableDeclarationNode(node)) {
-        const isConst = node.children.some(child => child.type === 'const')
-        const isReadonly = node.children.some(
-          child => child.type === 'readonly'
-        )
-        const isExported = checkIsExported(node)
-        const scope = determineScope(node)
-        const decorators = extractDecorators(node)
+  // 递归遍历AST，只提取顶层变量
+  function traverse(node: ASTNode, parentType?: string) {
+    // 只有当变量声明直接位于program节点下时，才认为是顶层变量
+    // 函数内部的变量声明位于statement_block节点下，应该被跳过
+    if (isVariableDeclarationNode(node) && parentType === 'program') {
+      const isConst = node.children.some(c => c.type === 'const')
+      const isReadonly = node.children.some(c => c.type === 'readonly')
+      const isExported = checkIsExported(node)
+      const scope = determineScope(node)
+      const decorators = extractDecorators(node)
 
-        for (const child of node.children) {
-          if (child.type === 'variable_declarator') {
-            try {
-              const nameNode = child.children.find(c => c.type === 'identifier')
-              const typeAnnotationNode = child.children.find(
-                c => c.type === 'type_annotation'
-              )
-              const valueNode = child.children.find(c => isValueNode(c))
+      for (const declarator of node.children) {
+        if (declarator.type === 'variable_declarator') {
+          try {
+            const nameNode = declarator.children.find(
+              c => c.type === 'identifier'
+            )
+            const typeAnnotationNode = declarator.children.find(
+              c => c.type === 'type_annotation'
+            )
+            const valueNode = declarator.children.find(c => isValueNode(c))
 
-              if (nameNode) {
-                const type = typeAnnotationNode
-                  ? extractTypeAnnotation(typeAnnotationNode)
-                  : undefined
+            if (nameNode) {
+              const type = typeAnnotationNode
+                ? extractTypeAnnotation(typeAnnotationNode)
+                : undefined
 
-                const value = valueNode
-                  ? extractValueFromNode(valueNode)
-                  : undefined
+              const value = valueNode
+                ? extractValueFromNode(valueNode)
+                : undefined
 
-                variables.push({
-                  name: nameNode.text,
-                  type,
-                  value,
-                  isConst,
-                  isReadonly,
-                  isExported,
-                  scope,
-                  decorators,
-                  position: child.position
-                })
-              }
-            } catch (error) {
-              logger.error(
-                `Error processing variable declarator: ${String(error)}`
-              )
+              variables.push({
+                name: nameNode.text,
+                type,
+                value,
+                isConst,
+                isReadonly,
+                isExported,
+                scope,
+                decorators,
+                position: declarator.position
+              })
             }
+          } catch (error) {
+            logger.error(
+              `Error processing variable declarator: ${String(error)}`
+            )
           }
         }
       }
+    }
 
-      for (const child of node.children) {
-        stack.push(child)
-      }
-    } catch (error) {
-      logger.error(
-        `Error processing node of type ${node.type}: ${String(error)}`
-      )
+    // 递归遍历子节点
+    for (const child of node.children) {
+      traverse(child, node.type)
     }
   }
+
+  // 从根节点开始遍历
+  traverse(astNode)
 
   return variables
 }

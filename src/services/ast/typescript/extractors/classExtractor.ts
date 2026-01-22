@@ -61,21 +61,32 @@ function hasChildByType(node: ASTNode, nodeType: string): boolean {
 
 export function extractClasses(astNode: ASTNode): ClassInfo[] {
   const classes: ClassInfo[] = []
-  const queue: ASTNode[] = [astNode]
+  const queue: Array<{ node: ASTNode; parent?: ASTNode }> = [{ node: astNode }]
 
   while (queue.length > 0) {
-    const node = queue.shift()!
+    const { node, parent } = queue.shift()!
 
     try {
       if (isClassNodeType(node.type)) {
-        const classInfo = parseClassInfo(node)
-        if (classInfo) {
-          classes.push(classInfo)
-          logger.debug(`Extracted class: ${classInfo.name}`)
+        // 只提取顶层类，即直接位于program节点下的类
+        const isTopLevel = parent?.type === 'program'
+
+        if (isTopLevel) {
+          const classInfo = parseClassInfo(node)
+          if (classInfo) {
+            classes.push(classInfo)
+            logger.debug(`Extracted class: ${classInfo.name}`)
+          }
+        } else {
+          logger.debug(
+            `Skipped non-top-level class at line ${node.position.toString()}`
+          )
         }
       }
 
-      queue.push(...node.children)
+      for (const child of node.children) {
+        queue.push({ node: child, parent: node })
+      }
     } catch (error) {
       logger.error(
         `Failed to process node of type ${node.type}`,
