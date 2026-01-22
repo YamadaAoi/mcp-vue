@@ -4,6 +4,7 @@ import { resolve } from 'path'
 export default defineConfig({
   test: {
     globals: true,
+    watch: false,
     environment: 'node',
     coverage: {
       provider: 'v8',

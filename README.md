@@ -1,22 +1,16 @@
 # MCP Vue/TypeScript 代码解析服务器
 
-一个基于 Tree-sitter 的高性能本地 MCP (Model Context Protocol) 服务器，用于解析和分析 TypeScript、JavaScript 和 Vue 代码。
+一个基于 Tree-sitter 和 @vue/compiler-sfc 的高性能本地 MCP (Model Context Protocol) 服务器，用于解析和分析 TypeScript、JavaScript 和 Vue 代码。
 
 ## 功能特性
 
-- 🌳 基于 Tree-sitter 的强大代码解析能力
 - 📝 支持 TypeScript、JavaScript 和 Vue 单文件组件 (SFC)
 - 🔍 提取函数、类、变量、导入、导出和类型定义
 - 🎯 支持 Vue 模板分析（指令、绑定、事件、组件）
-- 📊 生成人类可读的 Markdown 格式代码分析摘要
 - ⚡ 高性能并发请求处理
 - 💾 智能缓存机制，减少重复解析开销
 - 🔄 解析器池管理，优化资源利用
 - 📝 内置日志系统，支持控制台和文件输出
-- 🔧 灵活的命令行参数配置
-- ✨ 完整的类型安全保证
-- 🧪 全面的测试覆盖（基础、复杂场景、边界情况、性能测试）
-- 🛡️ 标准化的错误处理和日志记录
 
 ## 安装
 
@@ -63,8 +57,6 @@ npx mcp-vue --cwd=./packages/app --level=DEBUG --log-file=custom.log
 
 MCP 服务器通过命令行参数进行配置，支持以下参数：
 
-### 命令行参数
-
 | 参数                | 类型           | 描述                                   | 默认值               |
 | ------------------- | -------------- | -------------------------------------- | -------------------- |
 | `--cwd=<path>`      | string         | 当前工作目录（支持相对路径和绝对路径） | 启动命令的目录       |
@@ -73,24 +65,59 @@ MCP 服务器通过命令行参数进行配置，支持以下参数：
 | `--no-console`      | flag           | 禁用控制台输出                         | `true`（启用）       |
 | `--no-file`         | flag           | 禁用文件输出                           | `true`（启用）       |
 
-### 路径说明
+## MCP 工具列表
 
-- **cwd（工作目录）**：用于解析文件路径的基础目录
-  - 如果不指定 `--cwd`，默认使用启动命令时的当前目录
-  - 支持相对路径（相对于启动目录）和绝对路径
-  - 在 workspace 开发中，通常在子包目录启动，可以指定 `--cwd=..` 或 `--cwd=./` 来使用项目根目录
+服务器提供以下工具用于代码分析：
 
-- **文件路径解析**：当调用 `parse_code` 工具时，系统会尝试以下路径：
-  1. 直接使用提供的路径
-  2. 相对于 cwd 的路径
-  3. 绝对路径解析
+### parse_code
 
-### 日志级别说明
+完整解析代码文件并提取所有 AST 信息，返回结构化的代码分析数据。这是**主要且推荐**的代码分析工具。
 
-- **DEBUG**: 详细的调试信息，包括所有请求和响应
-- **INFO**: 一般信息，包括工具调用和解析结果
-- **WARN**: 警告信息
-- **ERROR**: 错误信息
+**参数：**
+
+- `filepath` (string, 必需): 要解析的文件路径（相对于配置的 cwd 或项目根目录）
+
+**返回：**
+
+返回一个结构化的代码分析对象，根据文件类型返回不同的信息：
+
+### TypeScript/JavaScript 文件返回信息
+
+- **functions**: 函数定义（函数声明、箭头函数、方法等）
+- **functionCalls**: 顶层函数调用（如 main、init、fetchData 等）
+- **classes**: 类定义（包括继承、实现接口、方法和属性）
+- **variables**: 变量声明（const、let、var）
+- **imports**: 导入语句
+- **exports**: 导出语句
+- **types**: 类型定义（接口、类型别名、枚举）
+
+### Vue 文件返回信息
+
+- **language**: 文件语言类型
+- **imports**: 导入语句
+- **optionsAPI**: Options API 信息（当使用 Options API 时返回）
+  - **methods**: 方法
+  - **props**: 属性
+  - **emits**: 事件
+  - **lifecycleHooks**: 生命周期钩子
+  - **dataProperties**: 数据属性
+  - **computedProperties**: 计算属性
+  - **watchProperties**: 监听属性
+  - **mixins**: 混入
+- **compositionAPI**: Composition API 信息（当使用 Composition API 时返回）
+  - **methods**: 方法
+  - **props**: 属性
+  - **emits**: 事件
+  - **lifecycleHooks**: 生命周期钩子
+  - **variables**: 变量
+  - **refs**: 响应式引用
+  - **reactives**: 响应式对象
+  - **computed**: 计算属性
+  - **watch**: 监听
+  - **watchEffects**: 监听效果
+  - **expose**: 暴露
+  - **provide**: 提供
+  - **inject**: 注入
 
 ## 在 Continue 中配置使用
 
@@ -141,273 +168,37 @@ mcpServers:
 - 文件路径是相对于配置的 `cwd` 或项目根目录的
 - 服务器会自动检测文件类型并使用相应的解析器
 - 相同文件的重复解析会使用缓存，提高性能
-- 返回结果为 Markdown 格式的代码分析摘要，便于 AI 理解
-
-### 配置说明
-
-- **name**: MCP 服务器的显示名称
-- **command**: 启动 MCP 服务器的命令（使用 `npx -y` 自动确认安装）
-- **args**: 传递给命令的参数
-- **type**: 传输类型，本服务器使用 `stdio`（标准输入/输出）
-
-## MCP 工具列表
-
-服务器提供以下工具用于代码分析：
-
-### parse_code
-
-完整解析代码文件并提取所有 AST 信息，并生成人类可读的 Markdown 格式摘要。这是**主要且推荐**的代码分析工具。
-
-**参数：**
-
-- `filepath` (string, 必需): 要解析的文件路径（相对于配置的 cwd 或项目根目录）
-
-**返回：**
-
-返回一个 Markdown 格式的代码分析摘要，包含以下信息：
-
-````markdown
-# Code Analysis: <filepath>
-
-Language: <language>
-
-## Functions (<count>)
-
-- <function_name>(<parameters>) -> <return_type> [<function_type>][L<row>:C<column>]
-  ...
-
-## Function Calls (<count>)
-
-- <function_name>(<arguments>)[L<row>:C<column>]
-  ...
-
-## Classes (<count>)
-
-### <class_name>
-
-**Extends:** <parent_class>
-**Implements:** <interface1>, <interface2>
-
-**Methods:**
-
-- <method_name>(<parameters>) -> <return_type>
-
-**Properties:**
-
-- <property_name>: <type> (<visibility>, <readonly>)
-  ...
-
-## Variables (<count>)
-
-- <variable_name>: <type> = <value> [<const|let|var>][L<row>:C<column>]
-  ...
-
-## Imports (<count>)
-
-- <import_type> <imports> from <source>[L<row>:C<column>]
-  ...
-
-## Exports (<count>)
-
-- <export_type> <export_name> (<export_type>)[L<row>:C<column>]
-  ...
-
-## Types (<count>)
-
-### <type_name> (<kind>)
-
-**Properties:**
-
-- <property_name>: <type> (<optional>, <readonly>)
-
-**Methods:**
-
-- <method_name>(<parameters>) -> <return_type>
-  ...
-
-## Vue Template
-
-**Directives:**
-
-- <directive_name>="<value>" on <element> [L<row>:C<column>]
-
-**Bindings:**
-
-- <binding_name>: <expression> on <element> [L<row>:C<column>]
-
-**Events:**
-
-- @<event_name>="<handler>" on <element> [L<row>:C<column>]
-
-**Components:**
-
-- <component_name>
-  ...
-
-## Vue Options API
-
-**Data Properties:**
-
-- <property_name>
-  ...
-
-**Computed Properties:**
-
-- <property_name>: <getter/setter>
-  ...
-
-**Watch Properties:**
-
-- <property_name>
-  ...
-
-**Methods:**
-
-- <method_name>(<parameters>) -> <return_type>
-  ...
-
-**Lifecycle Hooks:**
-
-- <hook_name>
-  ...
-
-**说明：**
-
-- 服务器会从文件系统读取文件内容，而不是接收代码字符串
-- 文件路径支持相对路径和绝对路径
-- 支持智能缓存机制，相同文件的重复解析会使用缓存
-- 自动检测文件类型（TypeScript、JavaScript、Vue）
-- 返回格式化的 Markdown 摘要，便于 AI 理解和处理
-- 一次性返回所有 AST 信息，包括：
-  - 函数定义（函数声明、箭头函数、方法等）
-  - 顶层函数调用（如 onMounted、watch、main 等）
-  - 类定义（包括继承、实现接口、方法和属性）
-  - 变量声明（const、let、var）
-  - 导入语句
-  - 导出语句
-  - 类型定义（接口、类型别名、枚举）
-  - Vue 模板信息（指令、绑定、事件、组件）
-  - Vue Options API（data、computed、watch、methods、生命周期钩子）
-
-## 技术说明
-
-### 函数返回值类型提取
-
-本服务器的函数返回值类型提取基于 **AST（抽象语法树）解析**，具有以下特点：
-
-**提取规则：**
-
-- ✅ **显式标注的返回值类型**：能够准确提取函数声明中显式标注的返回值类型
-
-  ```typescript
-  function returnsString(): string {
-    return 'hello'
-  }
-  // 提取结果：returnsString(none) -> string
-  ```
-
-- ⚠️ **无显式标注的返回值类型**：当函数没有显式标注返回值类型时，默认显示为 "void"
-  ```typescript
-  function returnsString() {
-    return 'hello'
-  }
-  // 提取结果：returnsString(none) -> void
-  ```
-
-**技术限制：**
-
-- AST 解析器专注于**语法结构**分析，不进行**语义分析**和**类型推断**
-- Tree-sitter 解析器本身不提供类型检查功能
-
-**示例输出：**
-
-```markdown
-# Code Analysis: src/components/Header.vue
-
-Language: vue
-
-## Functions (3)
-
-- anonymous(none) -> void [method_definition][L10:C2]
-- anonymous(none) -> void [method_definition][L15:C2]
-- anonymous(none) -> void [method_definition][L20:C2]
-
-## Function Calls (2)
-
-- onMounted(() => {
-  console.log('mounted')
-  })[L25:C0]
-- watch(() => {
-  console.log('watch')
-  }, () => {
-  console.log('callback')
-  })[L30:C0]
-
-## Imports (2)
-
-- default Button from ./Button.vue[L1:C0]
-- named ref, computed from vue[L2:C0]
-
-## Vue Template
-
-**Directives:**
-
-- v-if="isLoggedIn" on div[L5:C4]
-
-**Bindings:**
-
-- :class="{ active: isActive }" on button[L8:C6]
-
-**Events:**
-
-- @click="handleClick" on button[L8:C6]
-
-**Components:**
-
-- Button
-
-## Vue Options API
-
-**Data Properties:**
-
-- count
-- message
-
-**Computed Properties:**
-
-- doubledCount: getter
-
-**Watch Properties:**
-
-- count
-
-**Methods:**
-
-- increment(none) -> void
-
-**Lifecycle Hooks:**
-
-- mounted
-- beforeUnmount
-```
-
-## 许可证
-
-ISC License
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 作者
-
-zhouyinkui
+- 返回结果为结构化的代码分析对象，便于 AI 处理和理解
 
 ## 相关链接
 
 - [MCP 协议规范](https://modelcontextprotocol.io/)
-- [Tree-sitter 文档](https://tree-sitter.github.io/tree-sitter/)
-- [Vue 官方文档](https://vuejs.org/)
-- [Continue IDE](https://continue.dev/)
-- [Cursor IDE](https://cursor.sh/)
-````
+
+## AST 解析限制说明
+
+由于 AST 解析器专注于**语法结构**分析，不进行**语义分析**和**类型推断**，因此存在以下限制：
+
+### TypeScript 限制
+
+- **泛型类型参数**：无法获取泛型类型参数的具体类型信息，例如 `defineProps<Props>()` 无法提取 Props 接口的属性信息
+- **类型推断**：对于没有显式标注类型的变量和函数返回值，无法推断其类型
+- **复杂类型定义**：对于复杂的类型别名、条件类型等，可能无法完全解析
+
+### Vue 限制
+
+- **编译时宏**：对于 `defineProps()`、`defineEmits()` 等 Vue 3 的编译时宏，只能获取基本信息，无法获取完整的类型和结构信息
+- **模板编译**：对于 Vue 模板中的复杂表达式，可能无法完全解析其语义
+- **SFC 特定语法**：对于 Vue 单文件组件中的某些特定语法，解析可能不完全
+
+### 技术实现限制
+
+- **Tree-sitter 解析器**：Tree-sitter 本身不提供类型检查功能，只进行语法分析
+- **@vue/compiler-sfc**：虽然专门用于 Vue 组件解析，但对于某些高级用法可能存在限制
+- **缓存机制**：为了性能考虑，使用了缓存机制，可能无法实时反映文件的最新变化
+
+### 注意事项
+
+- 解析结果是基于 AST 结构的静态分析，不包含运行时信息
+- 对于复杂的代码结构，解析结果可能不够详细或准确
+- 对于 TypeScript 的类型系统特性，解析能力有限
+- 对于 Vue 的编译时特性，解析能力依赖于 @vue/compiler-sfc 的实现
